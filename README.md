@@ -15,6 +15,10 @@ __Buy Me a Coffee__
 
 https://buymeacoffee.com/parttimelarry
 
+## Diagram 
+
+(http://url/to/img.png)
+
 ## Prerequisites
 
 * Requires redis, Python3, and packages installed
