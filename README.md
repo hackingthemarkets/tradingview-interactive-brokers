@@ -17,7 +17,7 @@ https://buymeacoffee.com/parttimelarry
 
 ## Diagram 
 
-(http://url/to/img.png)
+(diagram.png)
 
 ## Prerequisites
 
