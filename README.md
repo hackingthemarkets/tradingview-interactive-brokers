@@ -30,6 +30,11 @@ export FLASK_APP=webapp
 export FLASK_ENV=development
 flask run
 ```
+in a separate terminal window 
+```
+python broker.py
+```
+
 
 ## References, Tools, and Libraries Used:
 
