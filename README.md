@@ -31,6 +31,37 @@ export FLASK_ENV=development
 flask run
 ```
 
+## Sample Webhook Message
+
+```
+{
+	"passphrase": "somelongstring123",
+	"time": "{{timenow}}",
+	"exchange": "{{exchange}}",
+	"ticker": "{{ticker}}",
+	"bar": {
+		"time": "{{time}}",
+		"open": {{open}},
+		"high": {{high}},
+		"low": {{low}},
+		"close": {{close}},
+		"volume": {{volume}}
+	},
+	"strategy": {
+		"position:size": {{strategy.position_size}},
+		"order_action": "{{strategy.order.action}}",
+		"order_contracts", {{strategy.order.contracts}},
+		"order_price", {strategy.order.price}},
+		"order_id": "{{strategy.order_id}}",
+		"market_position": "{{strategy.market_position}}",
+		"market_position_size": {{strategy.market_position_size}},
+		"prev_market_position": "{{strategy.prev_market_position}}",
+		"prev_market_position_size", {{strategy.prev_market_position_size}}
+	}
+}
+
+```
+
 ## References, Tools, and Libraries Used:
 
 * ngrok - https://ngrok.com - provides tunnel to localhost

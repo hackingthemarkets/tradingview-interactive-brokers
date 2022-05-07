@@ -33,7 +33,6 @@ def dashboard():
         SELECT * FROM signals
     """)
     signals = cursor.fetchall()
-
     return render_template('dashboard.html', signals=signals)
 
 @app.post("/webhook")

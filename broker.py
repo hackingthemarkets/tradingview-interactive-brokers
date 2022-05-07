@@ -4,7 +4,10 @@ import asyncio, time, random
 
 # connect to Interactive Brokers 
 ib = IB()
-ib.connect('127.0.0.1', 7497, clientId=1)
+#ib.connect('127.0.0.1', 7497, clientId=1)
+ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
+#ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
+
 
 # connect to Redis and subscribe to tradingview messages
 r = redis.Redis(host='localhost', port=6379, db=0)
@@ -19,8 +22,13 @@ async def check_messages():
 
         message_data = json.loads(message['data'])
 
-        stock = Stock(message_data['ticker'], 'SMART', 'USD')
+        # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
+        if message_data['ticker'] == 'NQ1!':
+            stock = Future('NQ', '20220617', 'GLOBEX')
+        else:
+            stock = Stock(message_data['ticker'], 'SMART', 'USD')
         order = MarketOrder(message_data['strategy']['order_action'], message_data['strategy']['order_contracts'])
+        #ib.qualifyOrder(order)
         trade = ib.placeOrder(stock, order)
 
 async def run_periodically(interval, periodic_function):
