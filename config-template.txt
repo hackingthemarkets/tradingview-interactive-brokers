@@ -2,5 +2,5 @@ The config variables below are:
 - your preferred ngrok subdomain (remove the line if you want to use the free ngrok)
 - a password you put in the Tradingview alert text, which the broker app on this end will require to match what's in the config
 
-ngrok-subdomain willer123
+ngrok-subdomain YOUR-NGROK-SUBDOMAIN
 signals-password YOUR-SIGNALS-PASSWORD
