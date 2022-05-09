@@ -37,7 +37,7 @@ First edit config.txt to contain your shared password and preferred subdomain
 
 Then install and run an access method to Interactive Brokers. Trader Workstation is a full trading interface with graphs and stuff, and the Gateway is just the API with a small screen to show the logs. Either of these will work. Download either one at https://www.interactivebrokers.com/en/home.php when you click on the Log In button.
 
-Then log into whichever mode of whichever IB app you want (paper vs live, TW vs Gateway), and turn on API access, turn off Read Only, and accept the warnings.
+Then log into whichever mode of whichever IB app you want (paper vs live, TW vs Gateway), and turn on "ActiveX and Socket Clients", turn off "Read Only API", and accept the warnings.
 
 Then, on three terminals, run the three start scripts. One is for the web API, the second is for the broker command processor, and the third is to start up ngrok.
 
@@ -74,6 +74,9 @@ Then set up a Tradingview alert to hit your webhook, and use the message below! 
 }
 
 ```
+
+Make sure to send this to https://yoursubdomain.ngrok.com/webhook in the Tradingview alert configuration (note the /webhook part)
+
 
 ## References, Tools, and Libraries Used:
 

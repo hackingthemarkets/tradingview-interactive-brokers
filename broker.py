@@ -4,7 +4,8 @@ import asyncio, time, random
 
 # connect to Interactive Brokers 
 ib = IB()
-ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
+#ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
+ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
 #ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
 #ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
 
@@ -14,8 +15,9 @@ r = redis.Redis(host='localhost', port=6379, db=0)
 p = r.pubsub()
 p.subscribe('tradingview')
 
+print("Waiting for webhook messages...")
 async def check_messages():
-    print(f"{time.time()} - checking for tradingview webhook messages")
+    #print(f"{time.time()} - checking for tradingview webhook messages")
     message = p.get_message()
     if message is not None and message['type'] == 'message':
         print(message)

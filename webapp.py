@@ -30,7 +30,12 @@ def dashboard():
     db = get_db()
     cursor = db.cursor()
     cursor.execute("""
-        SELECT * FROM signals
+        SELECT datetime(timestamp, 'localtime') as timestamp,
+        ticker,
+        order_action,
+        order_contracts,
+        order_price
+        FROM signals
         order by timestamp desc
     """)
     signals = cursor.fetchall()
