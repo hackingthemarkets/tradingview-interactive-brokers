@@ -4,8 +4,8 @@ import asyncio, time, random
 
 # connect to Interactive Brokers 
 ib = IB()
-#ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
-ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
+ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
+#ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
 #ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
 #ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
 

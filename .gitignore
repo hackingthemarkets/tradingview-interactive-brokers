@@ -2,3 +2,4 @@ config.txt
 *.log
 *.db
 
+trade.db

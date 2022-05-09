@@ -62,9 +62,9 @@ Then set up a Tradingview alert to hit your webhook, and use the message below! 
 	"strategy": {
 		"position:size": {{strategy.position_size}},
 		"order_action": "{{strategy.order.action}}",
-		"order_contracts", {{strategy.order.contracts}},
-		"order_price", {strategy.order.price}},
-		"order_id": "{{strategy.order_id}}",
+		"order_contracts": {{strategy.order.contracts}},
+		"order_price": {{strategy.order.price}},
+        "order_id": "{{strategy.order.id}}",
 		"market_position": "{{strategy.market_position}}",
 		"market_position_size": {{strategy.market_position_size}},
 		"prev_market_position": "{{strategy.prev_market_position}}",
@@ -76,6 +76,20 @@ Then set up a Tradingview alert to hit your webhook, and use the message below! 
 ```
 
 Make sure to send this to https://yoursubdomain.ngrok.com/webhook in the Tradingview alert configuration (note the /webhook part)
+
+## Watchouts
+
+Here are some common issues to watch out for, both in setup and operations
+
+* Your TW or Gateway login will be finicky. Prepare to do a bit of babysitting. This won't be 100% set and forget.
+	* If you log in to your IB account somewhere else, TW/GW will be logged out and you have to fix that.
+	* TW has a daily restart that you can't avoid.
+* The script doesn't convert from "shorting a long ETF" to "going long on a short ETF". So for e.g. if the TV strategy wants to short SOXL, then it will short SOXL rather than buying SOXS. There's a good chance this is actually higher performance anyway.
+* It's possible the bot and your IB account will get out of sync, like if you miss a buy signal because of a network flub and the sell comes in later and that turns into a short. Keep it simple, with just a couple algos triggering your bot, and when your algos are all in cash, make sure IB is all cash. Don't let the odd flub eat away at your profits.
+* Set your TV alerts to send to your phone and email as well as the bot. The email is helpful because it's the full signal, and you can use a tool like Insomnia to resend the message if it failed to get in.
+* If the buy signal doesn't get through, it will currently go the opposite way later on when it tries to sell out. You can either be ready to sell when it goes, or force the failed buy signal in using Insomnia.
+
+
 
 
 ## References, Tools, and Libraries Used:
