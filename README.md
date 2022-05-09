@@ -5,13 +5,13 @@ TradingView Interactive Brokers Integration using Webhooks
 
 https://www.youtube.com/watch?v=zsYKfzCNPPU
 
-## Support My Work
+## Support Part Time Larry's Work
 
 __Visit Interactive Brokers__
 
 https://www.interactivebrokers.com/mkt/?src=ptlg&url=%2Fen%2Findex.php%3Ff%3D1338
 
-__Buy Me a Coffee__
+__Buy Him a Coffee__
 
 https://buymeacoffee.com/parttimelarry
 
@@ -19,23 +19,35 @@ https://buymeacoffee.com/parttimelarry
 
 ![Diagram](diagram.png)
 
-## Prerequisites
+## Prerequisites / Installation
 
-* Requires redis, Python3, and packages installed
+Install redis as per https://redis.io/docs/getting-started/
+
+Make sure you have Python and pip3 installed for your OS
+
+Then run this:
 
 ```
 pip3 install -r requirements.txt
-
-export FLASK_APP=webapp
-export FLASK_ENV=development
-flask run
 ```
+
+## How to Run the Server
+
+First edit config.txt to contain your shared password and preferred subdomain
+
+Then install and run an access method to Interactive Brokers. Trader Workstation is a full trading interface with graphs and stuff, and the Gateway is just the API with a small screen to show the logs. Either of these will work. Download either one at https://www.interactivebrokers.com/en/home.php when you click on the Log In button.
+
+Then log into whichever mode of whichever IB app you want (paper vs live, TW vs Gateway), and turn on API access, turn off Read Only, and accept the warnings.
+
+Then, on three terminals, run the three start scripts. One is for the web API, the second is for the broker command processor, and the third is to start up ngrok.
+
+Then set up a Tradingview alert to hit your webhook, and use the message below! Make sure to change the password to match.
+
 
 ## Sample Webhook Message
 
 ```
 {
-	"passphrase": "somelongstring123",
 	"time": "{{timenow}}",
 	"exchange": "{{exchange}}",
 	"ticker": "{{ticker}}",
@@ -57,7 +69,8 @@ flask run
 		"market_position_size": {{strategy.market_position_size}},
 		"prev_market_position": "{{strategy.prev_market_position}}",
 		"prev_market_position_size", {{strategy.prev_market_position_size}}
-	}
+	},
+	"passphrase": "YOUR-SIGNALS-PASSWORD"
 }
 
 ```

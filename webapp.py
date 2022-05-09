@@ -31,6 +31,7 @@ def dashboard():
     cursor = db.cursor()
     cursor.execute("""
         SELECT * FROM signals
+        order by timestamp desc
     """)
     signals = cursor.fetchall()
     return render_template('dashboard.html', signals=signals)
