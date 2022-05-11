@@ -5,6 +5,14 @@ app = Flask(__name__)
 
 r = redis.Redis(host='localhost', port=6379, db=0)
 
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect('trade.db')
+        g.db.row_factory = sqlite3.Row
+
+    return g.db
+
+# initial setup of db (if it doesn't exist)
 conn = sqlite3.connect('trade.db')
 cursor = conn.cursor()
 cursor.execute("""
@@ -13,18 +21,21 @@ cursor.execute("""
         ticker,
         order_action,
         order_contracts,
-        order_price
+        order_price,
+        order_message text
     )
 """)
 conn.commit()
 
-def get_db():
-    if 'db' not in g:
-        g.db = sqlite3.connect('trade.db')
-        g.db.row_factory = sqlite3.Row
+# migrations for db, if you have older schemas
+cursor = conn.cursor()
+try:
+    cursor.execute("ALTER TABLE signals ADD COLUMN order_message text")
+    conn.commit()
+except:
+    pass
 
-    return g.db
-
+# web url routes below
 @app.get('/')
 def dashboard():
     db = get_db()
@@ -34,7 +45,8 @@ def dashboard():
         ticker,
         order_action,
         order_contracts,
-        order_price
+        order_price,
+        order_message
         FROM signals
         order by timestamp desc
     """)
@@ -48,17 +60,20 @@ def webhook():
     if data:
         r.publish('tradingview', data)
 
+        print('got message: ' + request.get_data())
+
         data_dict = request.json
 
         db = get_db()
         cursor = db.cursor()
         cursor.execute("""
-            INSERT INTO signals (ticker, order_action, order_contracts, order_price) 
-            VALUES (?, ?, ?, ?)
+            INSERT INTO signals (ticker, order_action, order_contracts, order_price, order_message) 
+            VALUES (?, ?, ?, ?, ?)
         """, (data_dict['ticker'], 
                 data_dict['strategy']['order_action'], 
                 data_dict['strategy']['order_contracts'],
-                data_dict['strategy']['order_price']))
+                data_dict['strategy']['order_price'],
+                request.get_data()))
 
         db.commit()
 

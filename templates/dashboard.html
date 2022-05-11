@@ -14,6 +14,7 @@
                     <th>action</th>
                     <th>quantity</th>
                     <th>price</th>
+                    <th>message</th>
                 </tr>
                 {% for signal in signals %}
                 <tr>
@@ -22,6 +23,7 @@
                     <td>{{ signal.order_action }}</td>
                     <td>{{ signal.order_contracts }}</td>
                     <td>{{ signal.order_price }}</td>
+                    <td style="font-size:6pt">{{ signal.order_message}}</td>
                 </tr>
                 {% endfor %}
             </table>
