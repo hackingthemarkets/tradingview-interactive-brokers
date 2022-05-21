@@ -60,7 +60,7 @@ def webhook():
     if data:
         r.publish('tradingview', data)
 
-        print('got message: ' + request.get_data())
+        #print('got message: ' + request.get_data())
 
         data_dict = request.json
 

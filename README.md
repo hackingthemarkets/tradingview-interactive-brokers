@@ -70,7 +70,7 @@ Then set up a Tradingview alert to hit your webhook, and use the message below! 
 		"market_position": "{{strategy.market_position}}",
 		"market_position_size": {{strategy.market_position_size}},
 		"prev_market_position": "{{strategy.prev_market_position}}",
-		"prev_market_position_size", {{strategy.prev_market_position_size}}
+		"prev_market_position_size": {{strategy.prev_market_position_size}}
 	},
 	"passphrase": "YOUR-SIGNALS-PASSWORD"
 }
