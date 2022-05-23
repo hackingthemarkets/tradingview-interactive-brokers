@@ -2,13 +2,23 @@ import redis, json
 from ib_insync import *
 import asyncio, time, random
 
-# connect to Interactive Brokers 
+# connect to Interactive Brokers (try all 4 options)
 ib = IB()
-ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
-#ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
-#ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
-#ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
-
+print("Trying to connect...")
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
+except: a=1
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
+except: a=1
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
+except: a=1
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
+except: a=1
+if not ib.isConnected():
+    raise Exception("** IB TW and IB gateway are not running, in live or paper configurations")
 
 # connect to Redis and subscribe to tradingview messages
 r = redis.Redis(host='localhost', port=6379, db=0)
