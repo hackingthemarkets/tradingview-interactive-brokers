@@ -37,7 +37,7 @@ pip3 install -r requirements.txt
 
 First edit config.txt to contain your shared password and preferred subdomain
 
-Then run an access method to Interactive Brokers. Trader Workstation is a full trading interface with graphs and stuff, and the Gateway is just the API with a small screen to show the logs. Either of these will work. Download either one at https://www.interactivebrokers.com/en/home.php when you click on the Log In button.
+Then run an access app for Interactive Brokers. Trader Workstation is a full trading interface with graphs and stuff, and the Gateway is just the API with a small screen to show the logs. Either of these will work. Download either one at https://www.interactivebrokers.com/en/home.php when you click on the Log In button.
 
 Then log into whichever mode of whichever IB app you want (paper vs live, TW vs Gateway), and turn on "ActiveX and Socket Clients", turn off "Read Only API", and accept the warnings.
 

@@ -2,18 +2,29 @@ import redis, json
 from ib_insync import *
 import asyncio, time, random
 
-# connect to Interactive Brokers 
+# connect to Interactive Brokers (try all 4 options)
 ib = IB()
-ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
-#ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
-#ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
-#ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
-
+print("Trying to connect...")
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
+except: a=1
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
+except: a=1
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
+except: a=1
+try: 
+    if not ib.isConnected(): ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
+except: a=1
+if not ib.isConnected():
+    raise Exception("** IB TW and IB gateway are not running, in live or paper configurations")
 
 # connect to Redis and subscribe to tradingview messages
 r = redis.Redis(host='localhost', port=6379, db=0)
 p = r.pubsub()
 p.subscribe('tradingview')
+run = 1
 
 print("Waiting for webhook messages...")
 async def check_messages():
@@ -27,15 +38,22 @@ async def check_messages():
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         if message_data['ticker'] == 'NQ1!':
             stock = Future('NQ', '20220617', 'GLOBEX')
+        elif message_data['ticker'] == 'NG1!':
+            stock = Future('NG', '20220701', 'GLOBEX')
+        elif message_data['ticker'] == 'CL1!':
+            stock = Future('CL', '20220701', 'GLOBEX')
         else:
             stock = Stock(message_data['ticker'], 'SMART', 'USD')
+
         order = MarketOrder(message_data['strategy']['order_action'], message_data['strategy']['order_contracts'])
         #ib.qualifyOrder(order)
         trade = ib.placeOrder(stock, order)
 
 async def run_periodically(interval, periodic_function):
-    while True:
+    global run
+    while run < 3600: # quit about once an hour (and let the looping wrapper script restart this)
         await asyncio.gather(asyncio.sleep(interval), periodic_function())
+        run = run + 1
 
 asyncio.run(run_periodically(1, check_messages))
 
