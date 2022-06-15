@@ -39,15 +39,18 @@ async def check_messages():
         if message_data['ticker'] == 'NQ1!':
             stock = Future('NQ', '20220617', 'GLOBEX')
         elif message_data['ticker'] == 'NG1!':
-            stock = Future('NG', '20220701', 'GLOBEX')
+            stock = Future('NG', '20220628', 'NYMEX')
         elif message_data['ticker'] == 'CL1!':
-            stock = Future('CL', '20220701', 'GLOBEX')
+            stock = Future('CL', '20220621', 'NYMEX')
+        elif message_data['ticker'] == '6J1!':
+            stock = Future('J7', '20220919', 'GLOBEX')
         else:
             stock = Stock(message_data['ticker'], 'SMART', 'USD')
 
         order = MarketOrder(message_data['strategy']['order_action'], message_data['strategy']['order_contracts'])
         #ib.qualifyOrder(order)
         trade = ib.placeOrder(stock, order)
+        print(trade)
 
 async def run_periodically(interval, periodic_function):
     global run
