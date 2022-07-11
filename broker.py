@@ -37,13 +37,19 @@ async def check_messages():
 
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         if message_data['ticker'] == 'NQ1!':
-            stock = Future('NQ', '20220617', 'GLOBEX')
+            stock = Future('NQ', '20220916', 'GLOBEX')
+        elif message_data['ticker'] == 'ES1!':
+            stock = Future('ES', '20220916', 'GLOBEX')
         elif message_data['ticker'] == 'NG1!':
             stock = Future('NG', '20220628', 'NYMEX')
         elif message_data['ticker'] == 'CL1!':
-            stock = Future('CL', '20220621', 'NYMEX')
+            stock = Future('CL', '20220720', 'NYMEX')
+        elif message_data['ticker'] == 'RTY1!':
+            stock = Future('RTY', '20220916', 'GLOBEX')
         elif message_data['ticker'] == '6J1!':
             stock = Future('J7', '20220919', 'GLOBEX')
+        elif message_data['ticker'] == 'HEN2022':
+            stock = Future('HE', '20220715', 'NYMEX')
         else:
             stock = Stock(message_data['ticker'], 'SMART', 'USD')
 
