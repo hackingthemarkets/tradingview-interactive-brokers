@@ -40,12 +40,16 @@ async def check_messages():
             stock = Future('NQ', '20220916', 'GLOBEX')
         elif message_data['ticker'] == 'ES1!':
             stock = Future('ES', '20220916', 'GLOBEX')
-        elif message_data['ticker'] == 'NG1!':
-            stock = Future('NG', '20220628', 'NYMEX')
-        elif message_data['ticker'] == 'CL1!':
-            stock = Future('CL', '20220720', 'NYMEX')
         elif message_data['ticker'] == 'RTY1!':
             stock = Future('RTY', '20220916', 'GLOBEX')
+        elif message_data['ticker'] == 'CL1!':
+            stock = Future('CL', '20220720', 'NYMEX')
+        elif message_data['ticker'] == 'CLU2022':
+            stock = Future('CL', '20220822', 'NYMEX')
+        elif message_data['ticker'] == 'NG1!':
+            stock = Future('NG', '20220628', 'NYMEX')
+        elif message_data['ticker'] == 'HG1!':
+            stock = Future('HG', '20220928', 'NYMEX')
         elif message_data['ticker'] == '6J1!':
             stock = Future('J7', '20220919', 'GLOBEX')
         elif message_data['ticker'] == 'HEN2022':
