@@ -4,8 +4,9 @@ logfile=ngrok.log
 
 # start ngrok proxy -- requires paid account if you want a fixed subdomain
 subd=`grep ngrok-subdomain config.txt |awk '{print $2}'`
+echo "Running while config.txt says 'ngrok-run yes'"
 
-while true; do
+while grep -s "ngrok-run yes" config.txt >/dev/null ; do
 	echo --------------------------------- |tee -a $logfile
 	date |tee -a $logfile
 	echo Starting up |tee -a $logfile

@@ -4,3 +4,4 @@ The config variables below are:
 
 ngrok-subdomain YOUR-NGROK-SUBDOMAIN
 signals-password YOUR-SIGNALS-PASSWORD
+ngrok-run yes
