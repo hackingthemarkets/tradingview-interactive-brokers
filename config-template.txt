@@ -5,3 +5,10 @@ The config variables below are:
 ngrok-subdomain YOUR-NGROK-SUBDOMAIN
 signals-password YOUR-SIGNALS-PASSWORD
 ngrok-run yes
+
+
+If you want to use Alpaca:
+
+alpaca-key YOURKEY
+alpaca-secret YOURSECRET
+

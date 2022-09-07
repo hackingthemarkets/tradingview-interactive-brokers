@@ -1,4 +1,4 @@
-import redis, sqlite3, time
+import redis, sqlite3, time, os
 from flask import Flask, render_template, request, g, current_app
 
 app = Flask(__name__)
@@ -82,3 +82,10 @@ def webhook():
     return {
         "code": "success"
     }
+
+@app.post("/killngrok")
+def killngrok():
+    stream = os.popen('killall ngrok')
+    output = stream.read()
+    output
+

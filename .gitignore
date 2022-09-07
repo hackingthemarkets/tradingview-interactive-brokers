@@ -2,5 +2,6 @@ config.txt
 *.log
 *.db
 *.pyc
+*.swp
 
 trade.db

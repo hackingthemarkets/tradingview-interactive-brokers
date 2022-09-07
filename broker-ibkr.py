@@ -37,7 +37,7 @@ async def check_messages():
 
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         if message_data['ticker'] == 'NQ1!':
-            stock = Future('NQ', '20220916', 'GLOBEX')
+            stock = Future('MNQ', '20220916', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
         elif message_data['ticker'] == 'QQQ': # assume QQQ->NQ (sometimes QQQ signals are helpful for gap plays)
             stock = Future('NQ', '20220916', 'GLOBEX')
             if (order_count > 0):
@@ -45,7 +45,7 @@ async def check_messages():
             else:
                 order_count = -1
         elif message_data['ticker'] == 'ES1!':
-            stock = Future('ES', '20220916', 'GLOBEX')
+            stock = Future('MES', '20220916', 'GLOBEX') # go with mini futures for now
         elif message_data['ticker'] == 'SPY': # assume SPY->ES
             stock = Future('ES', '20220916', 'GLOBEX')
             if (order_count > 0):
@@ -53,13 +53,11 @@ async def check_messages():
             else:
                 order_count = -1
         elif message_data['ticker'] == 'RTY1!':
-            stock = Future('RTY', '20220916', 'GLOBEX')
+            stock = Future('M2K', '20220916', 'GLOBEX') # go with mini futures for now
         elif message_data['ticker'] == 'CL1!':
-            stock = Future('CL', '20220720', 'NYMEX')
-        elif message_data['ticker'] == 'CLU2022':
-            stock = Future('CL', '20220822', 'NYMEX')
+            stock = Future('CL', '20220920', 'NYMEX')
         elif message_data['ticker'] == 'NG1!':
-            stock = Future('NG', '20220628', 'NYMEX')
+            stock = Future('NG', '20220920', 'NYMEX')
         elif message_data['ticker'] == 'HG1!':
             stock = Future('HG', '20220928', 'NYMEX')
         elif message_data['ticker'] == '6J1!':
