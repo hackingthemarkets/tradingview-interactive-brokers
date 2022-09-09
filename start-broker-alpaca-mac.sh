@@ -1,6 +1,6 @@
 #!/bin/sh
 
-logfile=broker.log
+logfile=broker-alpaca.log
 
 alpacakey=`grep alpaca-key config.txt |awk '{print $2}'`
 alpacasecret=`grep alpaca-secret config.txt |awk '{print $2}'`
