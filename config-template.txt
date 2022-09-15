@@ -12,3 +12,32 @@ If you want to use Alpaca:
 alpaca-key YOURKEY
 alpaca-secret YOURSECRET
 
+
+For the signals from TV, use this json payload:
+
+{
+	"time": "{{timenow}}",
+	"exchange": "{{exchange}}",
+	"ticker": "{{ticker}}",
+	"bar": {
+		"time": "{{time}}",
+		"open": {{open}},
+		"high": {{high}},
+		"low": {{low}},
+		"close": {{close}},
+		"volume": {{volume}}
+	},
+	"strategy": {
+        "account": "live",
+		"position:size": {{strategy.position_size}},
+		"order_action": "{{strategy.order.action}}",
+		"order_contracts": {{strategy.order.contracts}},
+		"order_price": {{strategy.order.price}},
+        "order_id": "{{strategy.order.id}}",
+		"market_position": "{{strategy.market_position}}",
+		"market_position_size": {{strategy.market_position_size}},
+		"prev_market_position": "{{strategy.prev_market_position}}",
+		"prev_market_position_size": {{strategy.prev_market_position_size}}
+	},
+	"passphrase": "YOURPASSPHRASE"
+}

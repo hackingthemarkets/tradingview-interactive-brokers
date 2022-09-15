@@ -3,6 +3,8 @@ import alpaca_trade_api as tradeapi
 import asyncio, time, random
 import sys
 
+# Usage: broker-alpaca.py [apikey] [apisecret]
+
 api = tradeapi.REST(sys.argv[1], sys.argv[2], base_url='https://paper-api.alpaca.markets')
 
 
@@ -22,7 +24,8 @@ async def check_messages():
         message_data = json.loads(message['data'])
 
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
-
+        if message_data['ticker'] == 'QQQ': # hack for now -- the QQQ trade is a gap play in premarket where I use NQ, so skip on Alpaca
+            return;
 
         # Place order
         price = message_data['strategy']['order_price']

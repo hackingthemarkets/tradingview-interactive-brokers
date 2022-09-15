@@ -1,24 +1,26 @@
 import redis, json
 from ib_insync import *
 import asyncio, time, random
+import sys
 
 # connect to Interactive Brokers (try all 4 options)
 ib = IB()
 print("Trying to connect...")
-try: 
-    if not ib.isConnected(): ib.connect('127.0.0.1', 7496, clientId=1) # live account on IB TW
-except: a=1
-try: 
-    if not ib.isConnected(): ib.connect('127.0.0.1', 4001, clientId=1) # live account on IB gateway
-except: a=1
-try: 
-    if not ib.isConnected(): ib.connect('127.0.0.1', 7497, clientId=1) # paper account on IB TW
-except: a=1
-try: 
-    if not ib.isConnected(): ib.connect('127.0.0.1', 4002, clientId=1) # paper account on IB gateway
-except: a=1
-if not ib.isConnected():
-    raise Exception("** IB TW and IB gateway are not running, in live or paper configurations")
+
+# arguments: broker-ibkr.py [port] [account]
+if len(sys.argv) != 3:
+    print("Usage: " + sys.argv[0] + " [port] [account]")
+    quit()
+
+# note [mode] needs to be set in the TV alert json in the strategy section, ie mode='live'
+# ports are typically: 
+#  7496 = TW-live
+#  4001 = Gateway-live
+#  7497 = TW-paper
+#  4002 = Gateway-paper
+ib.connect('127.0.0.1', int(sys.argv[1]), clientId=1)
+
+account = sys.argv[2]
 
 # connect to Redis and subscribe to tradingview messages
 r = redis.Redis(host='localhost', port=6379, db=0)
@@ -37,23 +39,26 @@ async def check_messages():
 
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         if message_data['ticker'] == 'NQ1!':
-            stock = Future('MNQ', '20220916', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
+            #stock = Future('MNQ', '20220916', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
+            stock = Future('NQ', '20220916', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
         elif message_data['ticker'] == 'QQQ': # assume QQQ->NQ (sometimes QQQ signals are helpful for gap plays)
             stock = Future('NQ', '20220916', 'GLOBEX')
-            if (order_count > 0):
-                order_count = 1
+            if (message_data['order_contracts'] > 0):
+                message_data['order_contracts'] = 1
             else:
-                order_count = -1
+                message_data['order_contracts'] = -1
         elif message_data['ticker'] == 'ES1!':
-            stock = Future('MES', '20220916', 'GLOBEX') # go with mini futures for now
+            #stock = Future('MES', '20220916', 'GLOBEX') # go with mini futures for now
+            stock = Future('ES', '20220916', 'GLOBEX') # go with mini futures for now
         elif message_data['ticker'] == 'SPY': # assume SPY->ES
             stock = Future('ES', '20220916', 'GLOBEX')
-            if (order_count > 0):
-                order_count = 1
+            if (message_data['order_contracts'] > 0):
+                message_data['order_contracts'] = 1
             else:
-                order_count = -1
+                message_data['order_contracts'] = -1
         elif message_data['ticker'] == 'RTY1!':
-            stock = Future('M2K', '20220916', 'GLOBEX') # go with mini futures for now
+            #stock = Future('M2K', '20220916', 'GLOBEX') # go with mini futures for now
+            stock = Future('RTY', '20220916', 'GLOBEX') # go with mini futures for now
         elif message_data['ticker'] == 'CL1!':
             stock = Future('CL', '20220920', 'NYMEX')
         elif message_data['ticker'] == 'NG1!':
@@ -67,10 +72,14 @@ async def check_messages():
         else:
             stock = Stock(message_data['ticker'], 'SMART', 'USD')
 
-        order = MarketOrder(message_data['strategy']['order_action'], message_data['strategy']['order_contracts'])
-        #ib.qualifyOrder(order)
-        trade = ib.placeOrder(stock, order)
-        print(trade)
+        if account != message_data['strategy']['account']:
+            print("Skipped; intended for another account: "+message_data['strategy']['account'])
+        else:
+            order = MarketOrder(message_data['strategy']['order_action'], message_data['strategy']['order_contracts'])
+            #ib.qualifyOrder(order)
+            trade = ib.placeOrder(stock, order)
+            print(trade)
+            
 
 async def run_periodically(interval, periodic_function):
     global run
