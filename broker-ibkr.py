@@ -39,26 +39,26 @@ async def check_messages():
 
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         if message_data['ticker'] == 'NQ1!':
-            #stock = Future('MNQ', '20220916', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
-            stock = Future('NQ', '20220916', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
+            #stock = Future('MNQ', '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
+            stock = Future('NQ', '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
         elif message_data['ticker'] == 'QQQ': # assume QQQ->NQ (sometimes QQQ signals are helpful for gap plays)
-            stock = Future('NQ', '20220916', 'GLOBEX')
-            if (message_data['order_contracts'] > 0):
-                message_data['order_contracts'] = 1
+            stock = Future('MNQ', '20221216', 'GLOBEX')
+            if (message_data['strategy']['order_contracts'] > 0):
+                message_data['strategy']['order_contracts'] = 1
             else:
-                message_data['order_contracts'] = -1
+                message_data['strategy']['order_contracts'] = -1
         elif message_data['ticker'] == 'ES1!':
-            #stock = Future('MES', '20220916', 'GLOBEX') # go with mini futures for now
-            stock = Future('ES', '20220916', 'GLOBEX') # go with mini futures for now
+            #stock = Future('MES', '20221216', 'GLOBEX') # go with mini futures for now
+            stock = Future('ES', '20221216', 'GLOBEX') # go with mini futures for now
         elif message_data['ticker'] == 'SPY': # assume SPY->ES
-            stock = Future('ES', '20220916', 'GLOBEX')
-            if (message_data['order_contracts'] > 0):
-                message_data['order_contracts'] = 1
+            stock = Future('MES', '20221216', 'GLOBEX')
+            if (message_data['strategy']['order_contracts'] > 0):
+                message_data['strategy']['order_contracts'] = 1
             else:
-                message_data['order_contracts'] = -1
+                message_data['strategy']['order_contracts'] = -1
         elif message_data['ticker'] == 'RTY1!':
-            #stock = Future('M2K', '20220916', 'GLOBEX') # go with mini futures for now
-            stock = Future('RTY', '20220916', 'GLOBEX') # go with mini futures for now
+            #stock = Future('M2K', '20221216', 'GLOBEX') # go with mini futures for now
+            stock = Future('RTY', '20221216', 'GLOBEX') # go with mini futures for now
         elif message_data['ticker'] == 'CL1!':
             stock = Future('CL', '20220920', 'NYMEX')
         elif message_data['ticker'] == 'NG1!':
