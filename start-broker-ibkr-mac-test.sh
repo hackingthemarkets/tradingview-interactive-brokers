@@ -1,6 +1,6 @@
 #!/bin/sh
 
-logfile=broker-ibkr-test.log
+logfile=$0.log
 
 # start broker connection point
 # this is in a while loop because sometimes the broker script crashes
