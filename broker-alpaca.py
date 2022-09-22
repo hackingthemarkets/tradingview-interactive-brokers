@@ -88,9 +88,18 @@ async def check_messages():
         #######################################################################
 
         orders = api.list_orders(status="open")
+
+        order_canceled = False
+
         for order in orders:
             if (order.symbol == order_symbol):
                 api.cancel_order(order.id)
+                order_canceled = True
+
+        if order_canceled:
+            # Wait for unexecuted order to be canceled ...
+            print('Asked Alpaca to cancel open order.  Waiting for 3 seconds for it to be canceled...')
+            sleep(3)
 
         ########################################################################
         ### if there is an existing position but in the opposite direction
@@ -127,8 +136,8 @@ async def check_messages():
             print(order)
 
             # Wait a second for position close order to fill...
-            print('Waiting for 1 second ...')
-            sleep(1)
+            print('Waiting for 3 seconds ...')
+            sleep(3)
 
 
         ########################################################
@@ -137,7 +146,7 @@ async def check_messages():
 
         if desired_qty != current_qty:
             if opposite_sides:
-                order_qty = desired_qty
+                order_qty = abs(desired_qty)
             else:
                 order_qty = abs(desired_qty - current_qty)
 
