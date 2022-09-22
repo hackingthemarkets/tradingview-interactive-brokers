@@ -1,12 +1,14 @@
 import redis, json
 import alpaca_trade_api as tradeapi
-import asyncio, time, random
+import asyncio, time, random, datetime
 import sys
+
 
 # Usage: broker-alpaca.py [apikey] [apisecret]
 
 api = tradeapi.REST(sys.argv[1], sys.argv[2], base_url='https://paper-api.alpaca.markets')
 
+last_time_traded = {}
 
 # connect to Redis and subscribe to tradingview messages
 r = redis.Redis(host='localhost', port=6379, db=0)
@@ -19,6 +21,7 @@ async def check_messages():
     #print(f"{time.time()} - checking for tradingview webhook messages")
     message = p.get_message()
     if message is not None and message['type'] == 'message':
+        print("*** ",datetime.datetime.now())
         print(message)
 
         data_dict = json.loads(message['data'])
@@ -41,6 +44,26 @@ async def check_messages():
             desired_qty = -market_position_size
         else:
             desired_qty = 0.0
+
+        #######################################################################
+        ## Check if the time lapsed between previous order and current order
+        ## is less than 2 minutes.  If so, check if the current order qty
+        ## is zero. i.e., it is closing active position. If so, skip the order.
+        #######################################################################
+
+        current_time = datetime.datetime.now()
+        last_time = datetime.datetime(1970,1,1)
+        if order_symbol in last_time_traded:
+            last_time = last_time_traded[order_symbol] 
+        delta = current_time - last_time
+        last_time_traded[order_symbol] = current_time
+
+        if (delta.total_seconds() < 120):
+            if desired_qty == 0:
+                print("skipping order, seems to be a direction changing exit")
+                return
+
+        #######################################################################
 
         bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
         bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload

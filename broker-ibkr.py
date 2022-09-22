@@ -1,6 +1,6 @@
 import redis, json
 from ib_insync import *
-import asyncio, time, random
+import asyncio, time, random, datetime
 import sys
 import nest_asyncio
 
@@ -10,12 +10,14 @@ nest_asyncio.apply()
 ib = IB()
 print("Trying to connect...")
 
-# arguments: broker-ibkr.py [port] [account]
+# arguments: broker-ibkr.py [port] [bot]
 if len(sys.argv) != 3:
-    print("Usage: " + sys.argv[0] + " [port] [account]")
+    print("Usage: " + sys.argv[0] + " [port] [bot]")
     quit()
 
-# note [mode] needs to be set in the TV alert json in the strategy section, ie mode='live'
+last_time_traded = {}
+
+# note [bot] needs to be set in the TV alert json in the strategy section, ie bot='live'
 # ports are typically: 
 #  7496 = TW-live
 #  4001 = Gateway-live
@@ -23,7 +25,7 @@ if len(sys.argv) != 3:
 #  4002 = Gateway-paper
 ib.connect('127.0.0.1', int(sys.argv[1]), clientId=1)
 
-account = sys.argv[2]
+bot = sys.argv[2]
 
 # connect to Redis and subscribe to tradingview messages
 r = redis.Redis(host='localhost', port=6379, db=0)
@@ -36,10 +38,18 @@ async def check_messages():
     #print(f"{time.time()} - checking for tradingview webhook messages")
     message = p.get_message()
     if message is not None and message['type'] == 'message':
-        print("***")
+        print("*** ",datetime.datetime.now())
         print(message)
 
         data_dict = json.loads(message['data'])
+
+        if 'bot' not in data_dict['strategy']:
+            print("You need to indicate the bot in the strategy portion of the json payload")
+            return
+        if bot != data_dict['strategy']['bot']:
+            print("signal intended for different bot '",data_dict['strategy']['bot'],"', skipping")
+            return
+
         ## extract data from TV payload received via webhook
         order_symbol          = data_dict['ticker']                             # ticker for which TV order was sent
         order_price           = data_dict['strategy']['order_price']            # purchase price per TV
@@ -106,6 +116,24 @@ async def check_messages():
         low_limit_price  = round(min(order_price, bar_low) * 0.995, round_precision)
 
         #######################################################################
+        ## Check if the time lapsed between previous order and current order
+        ## is less than 2 minutes.  If so, check if the current order qty
+        ## is zero. i.e., it is closing active position. If so, skip the order.
+        #######################################################################
+
+        current_time = datetime.datetime.now()
+        last_time = datetime.datetime(1970,1,1)
+        if order_symbol in last_time_traded:
+            last_time = last_time_traded[order_symbol] 
+        delta = current_time - last_time
+        last_time_traded[order_symbol] = current_time
+
+        if (delta.total_seconds() < 120):
+            if desired_qty == 0:
+                print("skipping order, seems to be a direction changing exit")
+                return
+
+        #######################################################################
         #### check if there is already a position for the order_symbol
         #######################################################################
 
@@ -129,6 +157,15 @@ async def check_messages():
         #    if (order.symbol == order_symbol):
         #        api.cancel_order(order.id)
 
+        # TODO: limit only to the selected account
+        print("getting trades")
+        print(ib.openTrades())
+        for t in ib.openTrades():
+            if t.contract.symbol == order_symbol:
+                ib.cancelOrder(t.order)
+
+
+
         ########################################################################
         ### if there is an existing position but in the opposite direction
         ### api doesn't allow directly going from long to short ot short to long
@@ -143,17 +180,24 @@ async def check_messages():
             if (current_qty < 0):
                 closing_side = "buy"
                 limit_price = high_limit_price
-                print('sending order to reduce short position to flat')
+                print('sending order to reduce short position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
             else:
                 closing_side = "sell"
                 limit_price = low_limit_price
-                print('sending order to reduce long position to flat')
+                print('sending order to reduce long position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
 
             order = LimitOrder(closing_side, abs(current_qty), limit_price)
             order.outsideRth = True
             # order.Account = ?? #TODO
             trade = ib.placeOrder(stock, order)
-            ib.waitOnUpdate()
+            maxloop = 15   # 15s time limit for the flattening order
+            while not trade.isDone():
+                ib.sleep(1)
+                maxloop = maxloop - 1
+                if maxloop == 0:
+                    print('** CASHING OUT ORDER TIMEOUT! Aborting to look for new orders')
+                    return
+            current_qty = 0
             print('done order')
 
 
@@ -162,10 +206,7 @@ async def check_messages():
         ########################################################
 
         if desired_qty != current_qty:
-            if opposite_sides:
-                order_qty = desired_qty
-            else:
-                order_qty = abs(desired_qty - current_qty)
+            order_qty = abs(desired_qty - current_qty)
 
             if (desired_qty > current_qty):
                 desired_action = "buy"
@@ -179,7 +220,7 @@ async def check_messages():
             order.outsideRth = True
             # order.Account = ?? #TODO
             trade = ib.placeOrder(stock, order)
-            ib.waitOnUpdate()
+            ib.sleep(0)
             print('done order')
         else:
             print('desired quantity is the same as the current quantity.  No order placed.')
