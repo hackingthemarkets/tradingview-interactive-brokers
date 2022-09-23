@@ -36,6 +36,11 @@ run = 1
 print("Waiting for webhook messages...")
 async def check_messages():
     #print(f"{time.time()} - checking for tradingview webhook messages")
+    global run
+    if run > 3600: # quit about once an hour (and let the looping wrapper script restart this)
+        quit
+    run = run + 1
+
     message = p.get_message()
     if message is not None and message['type'] == 'message':
         print("*** ",datetime.datetime.now())
@@ -92,7 +97,7 @@ async def check_messages():
             stock = Future(order_symbol, '20220715', 'NYMEX')
             round_precision = 1
         elif data_dict['exchange'] == 'TSX':
-            stock = Stock(order_symbol, 'TSE', 'CAD')
+            stock = Stock(order_symbol, 'SMART', 'CAD')
         else:
             stock = Stock(order_symbol, 'SMART', 'USD')
 
@@ -215,7 +220,7 @@ async def check_messages():
                 desired_action = "sell"
                 limit_price = low_limit_price
 
-            print('sending order to reach desired position, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+            print('sending order to reach desired position, to quantity',desired_qty,', price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
             order = LimitOrder(desired_action, order_qty, limit_price)
             order.outsideRth = True
             # order.Account = ?? #TODO
@@ -228,10 +233,8 @@ async def check_messages():
 
 
 async def run_periodically(interval, periodic_function):
-    global run
-    while run < 3600: # quit about once an hour (and let the looping wrapper script restart this)
+    while True:
         await asyncio.gather(asyncio.sleep(interval), periodic_function())
-        run = run + 1
 
 asyncio.run(run_periodically(1, check_messages))
 

@@ -4,9 +4,14 @@ import asyncio, time, random, datetime
 import sys
 
 
-# Usage: broker-alpaca.py [apikey] [apisecret]
+# Usage: broker-alpaca.py [apikey] [apisecret] [bot]
+if len(sys.argv) != 4:
+    print("Usage: " + sys.argv[0] + " [apikey] [apisecret] [bot]")
+    quit()
 
 api = tradeapi.REST(sys.argv[1], sys.argv[2], base_url='https://paper-api.alpaca.markets')
+
+bot = sys.argv[3]
 
 last_time_traded = {}
 
@@ -25,6 +30,13 @@ async def check_messages():
         print(message)
 
         data_dict = json.loads(message['data'])
+
+        if 'bot' not in data_dict['strategy']:
+            print("You need to indicate the bot in the strategy portion of the json payload")
+            return
+        if bot != data_dict['strategy']['bot']:
+            print("signal intended for different bot '",data_dict['strategy']['bot'],"', skipping")
+            return
 
         # Normalization -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         #if message_data['ticker'] == 'QQQ': # hack for now -- the QQQ trade is a gap play in premarket where I use NQ, so skip on Alpaca
@@ -99,7 +111,7 @@ async def check_messages():
         if order_canceled:
             # Wait for unexecuted order to be canceled ...
             print('Asked Alpaca to cancel open order.  Waiting for 3 seconds for it to be canceled...')
-            sleep(3)
+            time.sleep(3)
 
         ########################################################################
         ### if there is an existing position but in the opposite direction
