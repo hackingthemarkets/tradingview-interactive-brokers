@@ -33,6 +33,10 @@ p = r.pubsub()
 p.subscribe('tradingview')
 run = 1
 
+# function to round to the nearest decimal. y=10 for dimes, y=4 for quarters, y=100 for pennies
+def x_round(x,y):
+    return round(x*y)/y
+
 print("Waiting for webhook messages...")
 async def check_messages():
     #print(f"{time.time()} - checking for tradingview webhook messages")
@@ -61,41 +65,41 @@ async def check_messages():
         market_position       = data_dict['strategy']['market_position']        # after order, long, short, or flat
         market_position_size  = data_dict['strategy']['market_position_size']   # desired position after order per TV
 
-        round_precision = 2 # position variation minimum varies by security; start by assuming cents
+        round_precision = 100 # position variation minimum varies by security; start by assuming cents
 
         ## NORMALIZATION -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
         if data_dict['ticker'] == 'NQ1!':
             order_symbol = 'NQ'
             stock = Future(order_symbol, '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
-            round_precision = 1
+            round_precision = 4
         elif data_dict['ticker'] == 'ES1!':
             order_symbol = 'ES'
             stock = Future(order_symbol, '20221216', 'GLOBEX') # go with mini futures for now
-            round_precision = 1
+            round_precision = 4
         elif data_dict['ticker'] == 'RTY1!':
             order_symbol = 'RTY'
             stock = Future(order_symbol, '20221216', 'GLOBEX') # go with mini futures for now
-            round_precision = 1
+            round_precision = 10
         elif data_dict['ticker'] == 'CL1!':
             order_symbol = 'CL'
             stock = Future(order_symbol, '20220920', 'NYMEX')
-            round_precision = 1
+            round_precision = 10
         elif data_dict['ticker'] == 'NG1!':
             order_symbol = 'NG'
             stock = Future(order_symbol, '20220920', 'NYMEX')
-            round_precision = 1
+            round_precision = 10
         elif data_dict['ticker'] == 'HG1!':
             order_symbol = 'HG'
             stock = Future(order_symbol, '20220928', 'NYMEX')
-            round_precision = 1
+            round_precision = 10
         elif data_dict['ticker'] == '6J1!':
             order_symbol = 'J7'
             stock = Future(order_symbol, '20220919', 'GLOBEX')
-            round_precision = 1
+            round_precision = 10
         elif data_dict['ticker'] == 'HEN2022':
             order_symbol = 'HE'
             stock = Future(order_symbol, '20220715', 'NYMEX')
-            round_precision = 1
+            round_precision = 10
         elif data_dict['exchange'] == 'TSX':
             stock = Stock(order_symbol, 'SMART', 'CAD')
         else:
@@ -117,8 +121,8 @@ async def check_messages():
         bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
 
         ## calculate a conservative limit order
-        high_limit_price = round(max(order_price, bar_high) * 1.005, round_precision)
-        low_limit_price  = round(min(order_price, bar_low) * 0.995, round_precision)
+        high_limit_price = x_round(max(order_price, bar_high) * 1.005, round_precision)
+        low_limit_price  = x_round(min(order_price, bar_low) * 0.995, round_precision)
 
         #######################################################################
         ## Check if the time lapsed between previous order and current order

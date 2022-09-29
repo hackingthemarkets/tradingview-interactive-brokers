@@ -149,7 +149,7 @@ async def check_messages():
 
             # Wait a second for position close order to fill...
             print('Waiting for 3 seconds ...')
-            sleep(3)
+            time.sleep(3)
 
 
         ########################################################
