@@ -65,10 +65,10 @@ async def check_messages():
 
         current_time = datetime.datetime.now()
         last_time = datetime.datetime(1970,1,1)
-        if order_symbol in last_time_traded:
-            last_time = last_time_traded[order_symbol] 
+        if order_symbol+bot in last_time_traded:
+            last_time = last_time_traded[order_symbol+bot] 
         delta = current_time - last_time
-        last_time_traded[order_symbol] = current_time
+        last_time_traded[order_symbol+bot] = current_time
 
         if (delta.total_seconds() < 120):
             if desired_qty == 0:
