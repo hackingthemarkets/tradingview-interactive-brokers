@@ -1,18 +1,30 @@
-The config variables below are:
-- your preferred ngrok subdomain (remove the line if you want to use the free ngrok)
-- a password you put in the Tradingview alert text, which the broker app on this end will require to match what's in the config
 
-ngrok-subdomain YOUR-NGROK-SUBDOMAIN
-signals-password YOUR-SIGNALS-PASSWORD
-ngrok-run yes
+[DEFAULT]
 
+# The config variables below are:
+# - your preferred ngrok subdomain (remove the line if you want to use the free ngrok)
+# - a password you put in the Tradingview alert text, which the broker app on this end will require to match what's in the config
 
-If you want to use Alpaca:
-
-alpaca-key YOURKEY
-alpaca-secret YOURSECRET
+ngrok-subdomain = YOUR-NGROK-SUBDOMAIN
+signals-password = YOUR-SIGNALS-PASSWORD
+ngrok-run = yes
 
 
+# If you want to use TextMagic to SMS any errors (leave blank if not):
+
+textmagic-username = 
+textmagic-key = 
+textmagic-phone = +1xxxyyyzzzz
+
+
+
+# If you want to use Alpaca:
+
+alpaca-key = YOURKEY
+alpaca-secret = YOURSECRET
+
+
+/*
 For the signals from TV, use this json payload:
 
 {
@@ -28,7 +40,7 @@ For the signals from TV, use this json payload:
 		"volume": {{volume}}
 	},
 	"strategy": {
-        "account": "live",
+        "bot": "live",
 		"position:size": {{strategy.position_size}},
 		"order_action": "{{strategy.order.action}}",
 		"order_contracts": {{strategy.order.contracts}},
@@ -41,3 +53,4 @@ For the signals from TV, use this json payload:
 	},
 	"passphrase": "YOURPASSPHRASE"
 }
+*/

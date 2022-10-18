@@ -2,8 +2,6 @@
 
 logfile=$0.log
 
-alpacakey=`grep alpaca-key config.txt |awk '{print $2}'`
-alpacasecret=`grep alpaca-secret config.txt |awk '{print $2}'`
 botname='live'
 
 # start broker connection point
@@ -12,7 +10,7 @@ while true; do
 	echo --------------------------------- |tee -a $logfile
 	date |tee -a $logfile
 	echo Starting up |tee -a $logfile
-	python3 -u broker-alpaca.py $alpacakey $alpacasecret $botname 2>&1 |tee -a $logfile
+	python3 -u broker-alpaca.py $botname 2>&1 |tee -a $logfile
 	echo Restarting in 5s |tee -a $logfile
 	sleep 5
 done

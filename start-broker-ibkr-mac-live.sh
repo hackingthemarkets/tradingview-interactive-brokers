@@ -9,6 +9,6 @@ while true; do
 	date |tee -a $logfile
 	echo Starting up |tee -a $logfile
 	python3 -u broker-ibkr.py 7496 live 2>&1 |tee -a $logfile
-	echo Restarting in 5s |tee -a $logfile
-	sleep 5
+	echo Restarting in 15s |tee -a $logfile
+	sleep 15
 done
