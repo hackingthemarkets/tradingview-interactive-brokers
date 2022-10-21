@@ -61,6 +61,12 @@ run = 1
 def x_round(x,y):
     return round(x*y)/y
 
+# figure out what account list to use, if any is specified
+accounts = ['DEFAULT']
+accountlist = config['DEFAULT']['accounts-'+bot]
+if accountlist and accountlist != "":
+    accounts = accountlist.split(",")
+
 print("Waiting for webhook messages...")
 async def check_messages():
     try:
@@ -89,7 +95,7 @@ async def check_messages():
             order_symbol          = data_dict['ticker']                             # ticker for which TV order was sent
             order_price           = data_dict['strategy']['order_price']            # purchase price per TV
             market_position       = data_dict['strategy']['market_position']        # after order, long, short, or flat
-            market_position_size  = data_dict['strategy']['market_position_size']   # desired position after order per TV
+            market_position_size_orig  = data_dict['strategy']['market_position_size']   # desired position after order per TV
 
             round_precision = 100 # position variation minimum varies by security; start by assuming cents
 
@@ -131,134 +137,141 @@ async def check_messages():
             else:
                 stock = Stock(order_symbol, 'SMART', 'USD')
 
-            ## PLACING THE ORDER
+            for account in accounts:
+                ## PLACING THE ORDER
 
-            # Place order
-
-            ## set the order_qty sign based on whether the final position is long or short
-            if (market_position == "long"):
-                desired_qty = +market_position_size
-            elif (market_position == "short"):
-                desired_qty = -market_position_size
-            else:
-                desired_qty = 0.0
-
-            bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
-            bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
-
-            ## calculate a conservative limit order
-            high_limit_price = x_round(max(order_price, bar_high) * 1.005, round_precision)
-            low_limit_price  = x_round(min(order_price, bar_low) * 0.995, round_precision)
-
-            #######################################################################
-            ## Check if the time lapsed between previous order and current order
-            ## is less than 2 minutes.  If so, check if the current order qty
-            ## is zero. i.e., it is closing active position. If so, skip the order.
-            #######################################################################
-
-            current_time = datetime.datetime.now()
-            last_time = datetime.datetime(1970,1,1)
-            if order_symbol+bot in last_time_traded:
-                last_time = last_time_traded[order_symbol+bot] 
-            delta = current_time - last_time
-            last_time_traded[order_symbol+bot] = current_time
-
-            if (delta.total_seconds() < 120):
-                if desired_qty == 0:
-                    print("skipping order, seems to be a direction changing exit")
-                    return
-
-            #######################################################################
-            #### check if there is already a position for the order_symbol
-            #######################################################################
-
-            position = 0
-            current_qty = 0.0
-
-            # TODO: limit only to the selected account
-            print("getting positions")
-            print(ib.positions())
-            for i in ib.positions():
-                if i.contract.symbol == order_symbol:
-                    position = i.position
-                    current_qty = i.position
-
-            #######################################################################
-            #### cancel if there are open orders for the order_symbol
-            #######################################################################
-
-            #orders = api.list_orders(status="open")
-            #for order in orders:
-            #    if (order.symbol == order_symbol):
-            #        api.cancel_order(order.id)
-
-            # TODO: limit only to the selected account
-            print("getting trades")
-            print(ib.openTrades())
-            for t in ib.openTrades():
-                if t.contract.symbol == order_symbol:
-                    ib.cancelOrder(t.order)
-
-
-
-            ########################################################################
-            ### if there is an existing position but in the opposite direction
-            ### api doesn't allow directly going from long to short ot short to long
-            ### so, close the opposite position first before opening the order
-            ########################################################################
-
-            opposite_sides = (current_qty < 0 and desired_qty > 0) or (current_qty > 0 and desired_qty < 0)
-
-            if opposite_sides:
-            # existing position is in the opposite direction of order
-
-                if (current_qty < 0):
-                    closing_side = "buy"
-                    limit_price = high_limit_price
-                    print('sending order to reduce short position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+                if account == "DEFAULT":
+                    market_position_size = market_position_size_orig
                 else:
-                    closing_side = "sell"
-                    limit_price = low_limit_price
-                    print('sending order to reduce long position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+                    multstr = config[account]["multiplier"]
+                    if multstr and multstr != "":
+                        market_position_size = round(market_position_size_orig * float(multstr))
+                    else:
+                        throw("You need to specify the multiplier for account " + account + " in config.txt")
 
-                order = LimitOrder(closing_side, abs(current_qty), limit_price)
-                order.outsideRth = True
-                # order.Account = ?? #TODO
-                trade = ib.placeOrder(stock, order)
-                maxloop = 60   # 60s time limit for the flattening order
-                while not trade.isDone():
-                    ib.sleep(1)
-                    maxloop = maxloop - 1
-                    if maxloop == 0:
-                        raise Exception('** CASHING OUT ORDER TIMEOUT! Aborting to look for new orders')
+                print("working on trade for account ", account, " symbol ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+
+                # Place order
+
+                ## set the order_qty sign based on whether the final position is long or short
+                if (market_position == "long"):
+                    desired_qty = +market_position_size
+                elif (market_position == "short"):
+                    desired_qty = -market_position_size
+                else:
+                    desired_qty = 0.0
+
+                bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
+                bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
+
+                ## calculate a conservative limit order
+                high_limit_price = x_round(max(order_price, bar_high) * 1.005, round_precision)
+                low_limit_price  = x_round(min(order_price, bar_low) * 0.995, round_precision)
+
+                #######################################################################
+                ## Check if the time lapsed between previous order and current order
+                ## is less than 2 minutes.  If so, check if the current order qty
+                ## is zero. i.e., it is closing active position. If so, skip the order.
+                #######################################################################
+
+                current_time = datetime.datetime.now()
+                last_time = datetime.datetime(1970,1,1)
+                if order_symbol+bot in last_time_traded:
+                    last_time = last_time_traded[order_symbol+bot] 
+                delta = current_time - last_time
+                last_time_traded[order_symbol+bot] = current_time
+
+                if (delta.total_seconds() < 120):
+                    if desired_qty == 0:
+                        print("skipping order, seems to be a direction changing exit")
                         return
-                current_qty = 0
-                print('done order')
+
+                #######################################################################
+                #### check if there is already a position for the order_symbol
+                #######################################################################
+
+                position = 0
+                current_qty = 0.0
+
+                print("getting positions")
+                positions = ib.positions()
+                print(positions)
+                for i in positions:
+                    if i.contract.symbol == order_symbol and (account=='DEFAULT' or i.account==account):
+                        position = i.position
+                        current_qty = i.position
+
+                #######################################################################
+                #### cancel if there are open orders for the order_symbol
+                #######################################################################
+
+                print("getting trades")
+                opentrades = ib.openTrades()
+                print(opentrades)
+                for t in opentrades:
+                    if t.contract.symbol == order_symbol and (account=='DEFAULT' or t.order.account==account):
+                        ib.cancelOrder(t.order)
+
+                ########################################################################
+                ### if there is an existing position but in the opposite direction
+                ### api doesn't allow directly going from long to short ot short to long
+                ### so, close the opposite position first before opening the order
+                ########################################################################
+
+                opposite_sides = (current_qty < 0 and desired_qty > 0) or (current_qty > 0 and desired_qty < 0)
+
+                if opposite_sides:
+                # existing position is in the opposite direction of order
+
+                    if (current_qty < 0):
+                        closing_side = "buy"
+                        limit_price = high_limit_price
+                        print('sending order to reduce short position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+                    else:
+                        closing_side = "sell"
+                        limit_price = low_limit_price
+                        print('sending order to reduce long position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+
+                    order = LimitOrder(closing_side, abs(current_qty), limit_price)
+                    order.outsideRth = True
+                    # order.Account = ?? #TODO
+                    trade = ib.placeOrder(stock, order)
+                    maxloop = 60   # 60s time limit for the flattening order
+                    while not trade.isDone():
+                        ib.sleep(1)
+                        maxloop = maxloop - 1
+                        if maxloop == 0:
+                            raise Exception('** CASHING OUT ORDER TIMEOUT! Aborting to look for new orders')
+                            return
+                    current_qty = 0
+                    print('done order')
 
 
-            ########################################################
-            ## Now, place the order to build up the desired position
-            ########################################################
+                ########################################################
+                ## Now, place the order to build up the desired position
+                ########################################################
 
-            if desired_qty != current_qty:
-                order_qty = abs(desired_qty - current_qty)
+                if desired_qty != current_qty:
+                    order_qty = abs(desired_qty - current_qty)
 
-                if (desired_qty > current_qty):
-                    desired_action = "buy"
-                    limit_price = high_limit_price
+                    if (desired_qty > current_qty):
+                        desired_action = "buy"
+                        limit_price = high_limit_price
+                    else:
+                        desired_action = "sell"
+                        limit_price = low_limit_price
+
+                    print('sending order to reach desired position, to quantity',desired_qty,', price limit',limit_price)
+                    order = LimitOrder(desired_action, order_qty, limit_price)
+                    order.outsideRth = True
+                    if account != 'DEFAULT': order.account = account
+                    trade = ib.placeOrder(stock, order)
+                    ib.sleep(1)
+                    print('done placing order')
                 else:
-                    desired_action = "sell"
-                    limit_price = low_limit_price
+                    print('desired quantity is the same as the current quantity.  No order placed.')
 
-                print('sending order to reach desired position, to quantity',desired_qty,', price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
-                order = LimitOrder(desired_action, order_qty, limit_price)
-                order.outsideRth = True
-                # order.Account = ?? #TODO
-                trade = ib.placeOrder(stock, order)
-                ib.sleep(0)
-                print('done order')
-            else:
-                print('desired quantity is the same as the current quantity.  No order placed.')
+
     except Exception as e:
         handle_ex(e)
         raise
