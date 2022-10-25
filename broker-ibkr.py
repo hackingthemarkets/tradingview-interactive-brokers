@@ -208,9 +208,9 @@ async def check_messages():
                 print("getting trades")
                 opentrades = ib.openTrades()
                 print(opentrades)
-                for t in opentrades:
-                    if t.contract.symbol == order_symbol and (account=='DEFAULT' or t.order.account==account):
-                        ib.cancelOrder(t.order)
+                #for t in opentrades:
+                #    if t.contract.symbol == order_symbol and (account=='DEFAULT' or t.order.account==account):
+                #        ib.cancelOrder(t.order)
 
                 ########################################################################
                 ### if there is an existing position but in the opposite direction
@@ -234,7 +234,7 @@ async def check_messages():
 
                     order = LimitOrder(closing_side, abs(current_qty), limit_price)
                     order.outsideRth = True
-                    # order.Account = ?? #TODO
+                    if account != 'DEFAULT': order.account = account
                     trade = ib.placeOrder(stock, order)
                     maxloop = 60   # 60s time limit for the flattening order
                     while not trade.isDone():
