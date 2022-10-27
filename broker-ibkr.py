@@ -5,6 +5,8 @@ import sys
 import nest_asyncio
 import configparser
 import traceback
+import math
+import yfinance as yf
 from textmagic.rest import TextmagicRestClient
 
 nest_asyncio.apply()
@@ -67,6 +69,31 @@ accountlist = config['DEFAULT']['accounts-'+bot]
 if accountlist and accountlist != "":
     accounts = accountlist.split(",")
 
+def get_price(symbol):
+    stockdata = yf.Ticker(symbol).info
+    #print("stock ", symbol, " : ", stockdata)
+    return stockdata['regularMarketPrice']
+
+
+    contract = Stock(symbol,'SMART','USD')
+    #ib.reqMarketDataType(4)
+    #ticker = ib.reqMktData(contract)
+    #while ticker.last != ticker.last: 
+    #    ib.sleep(0.01) #Wait until data is in. 
+    #ib.cancelMktData(contract)
+    [ticker] = ib.reqTickers(contract)
+    if math.isnan(ticker.last):
+        if math.isnan(ticker.close):
+            raise Exception("error trying to retrieve stock price for " + symbol)
+        else:
+            precio = ticker.close
+            tipo = 'Close'
+    else:
+        precio = ticker.last
+        tipo = 'Last'
+    return precio
+
+
 print("Waiting for webhook messages...")
 async def check_messages():
     try:
@@ -76,6 +103,8 @@ async def check_messages():
         if run > 3600: # quit about once an hour (and let the looping wrapper script restart this)
             quit
         run = run + 1
+
+        config.read('config.txt')
 
         message = p.get_message()
         if message is not None and message['type'] == 'message':
@@ -92,64 +121,100 @@ async def check_messages():
                 return
 
             ## extract data from TV payload received via webhook
-            order_symbol          = data_dict['ticker']                             # ticker for which TV order was sent
-            order_price           = data_dict['strategy']['order_price']            # purchase price per TV
-            market_position       = data_dict['strategy']['market_position']        # after order, long, short, or flat
+            order_symbol_orig          = data_dict['ticker']                             # ticker for which TV order was sent
+            order_price_orig           = data_dict['strategy']['order_price']            # purchase price per TV
+            market_position_orig       = data_dict['strategy']['market_position']        # order direction: long, short, or flat
             market_position_size_orig  = data_dict['strategy']['market_position_size']   # desired position after order per TV
 
             round_precision = 100 # position variation minimum varies by security; start by assuming cents
 
             ## NORMALIZATION -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
-            if data_dict['ticker'] == 'NQ1!':
-                order_symbol = 'NQ'
-                stock = Future(order_symbol, '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
+
+            if order_symbol_orig == 'NQ1!':
+                order_symbol_orig = 'NQ'
+                stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
                 round_precision = 4
-            elif data_dict['ticker'] == 'ES1!':
-                order_symbol = 'ES'
-                stock = Future(order_symbol, '20221216', 'GLOBEX') # go with mini futures for now
+            elif order_symbol_orig == 'ES1!':
+                order_symbol_orig = 'ES'
+                stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for now
                 round_precision = 4
-            elif data_dict['ticker'] == 'RTY1!':
-                order_symbol = 'RTY'
-                stock = Future(order_symbol, '20221216', 'GLOBEX') # go with mini futures for now
+            elif order_symbol_orig == 'RTY1!':
+                order_symbol_orig = 'RTY'
+                stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for now
                 round_precision = 10
-            elif data_dict['ticker'] == 'CL1!':
-                order_symbol = 'CL'
-                stock = Future(order_symbol, '20220920', 'NYMEX')
+            elif order_symbol_orig == 'CL1!':
+                order_symbol_orig = 'CL'
+                stock = Future(order_symbol_orig, '20220920', 'NYMEX')
                 round_precision = 10
-            elif data_dict['ticker'] == 'NG1!':
-                order_symbol = 'NG'
-                stock = Future(order_symbol, '20220920', 'NYMEX')
+            elif order_symbol_orig == 'NG1!':
+                order_symbol_orig = 'NG'
+                stock = Future(order_symbol_orig, '20220920', 'NYMEX')
                 round_precision = 10
-            elif data_dict['ticker'] == 'HG1!':
-                order_symbol = 'HG'
-                stock = Future(order_symbol, '20220928', 'NYMEX')
+            elif order_symbol_orig == 'HG1!':
+                order_symbol_orig = 'HG'
+                stock = Future(order_symbol_orig, '20220928', 'NYMEX')
                 round_precision = 10
-            elif data_dict['ticker'] == '6J1!':
-                order_symbol = 'J7'
-                stock = Future(order_symbol, '20220919', 'GLOBEX')
+            elif order_symbol_orig == '6J1!':
+                order_symbol_orig = 'J7'
+                stock = Future(order_symbol_orig, '20220919', 'GLOBEX')
                 round_precision = 10
-            elif data_dict['ticker'] == 'HEN2022':
-                order_symbol = 'HE'
-                stock = Future(order_symbol, '20220715', 'NYMEX')
+            elif order_symbol_orig == 'HEN2022':
+                order_symbol_orig = 'HE'
+                stock = Future(order_symbol_orig, '20220715', 'NYMEX')
                 round_precision = 10
             elif data_dict['exchange'] == 'TSX':
-                stock = Stock(order_symbol, 'SMART', 'CAD')
+                stock = Stock(order_symbol_orig, 'SMART', 'CAD')
             else:
-                stock = Stock(order_symbol, 'SMART', 'USD')
+                stock = Stock(order_symbol_orig, 'SMART', 'USD')
 
             for account in accounts:
                 ## PLACING THE ORDER
+                order_symbol = order_symbol_orig
+                order_price = order_price_orig
+                market_position = market_position_orig
+                market_position_size = market_position_size_orig
 
-                if account == "DEFAULT":
-                    market_position_size = market_position_size_orig
-                else:
-                    multstr = config[account]["multiplier"]
-                    if multstr and multstr != "":
-                        market_position_size = round(market_position_size_orig * float(multstr))
+                if account != "DEFAULT":
+                    if (account in config 
+                        and "multiplier" in config[account] 
+                        and config[account]["multiplier"] != ""
+                        ):
+                        market_position_size = round(market_position_size_orig * float(config[account]["multiplier"]))
                     else:
                         throw("You need to specify the multiplier for account " + account + " in config.txt")
 
                 print("working on trade for account ", account, " symbol ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+
+                bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
+                bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
+
+                #######################################################################
+                ## Fix from short to a short ETF, if this account needs it.
+                #######################################################################
+                if (market_position == 'short' 
+                    and order_symbol in config['inverse-etfs']
+                    and account != 'DEFAULT' 
+                    and 'use-inverse-etf' in config[account] 
+                    and config[account]['use-inverse-etf'] == 'yes'
+                    ):
+
+                    short_symbol = config['inverse-etfs'][order_symbol]
+                    long_price = get_price(order_symbol)
+                    short_price = get_price(short_symbol)
+                    if data_dict['exchange'] == 'TSX':
+                        stock = Stock(short_symbol, 'SMART', 'CAD')
+                    else:
+                        stock = Stock(short_symbol, 'SMART', 'USD')
+                    order_symbol = short_symbol
+                    market_position = "long"
+                    market_position_size = round(market_position_size * long_price / short_price)
+                    bar_high = short_price
+                    bar_low = short_price
+                    order_price = short_price
+                    print("switching to short ETF ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+
+                    # TODO: handle long-short transitions
+
 
                 # Place order
 
@@ -160,9 +225,6 @@ async def check_messages():
                     desired_qty = -market_position_size
                 else:
                     desired_qty = 0.0
-
-                bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
-                bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
 
                 ## calculate a conservative limit order
                 high_limit_price = x_round(max(order_price, bar_high) * 1.005, round_precision)

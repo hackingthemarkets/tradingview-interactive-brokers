@@ -32,6 +32,15 @@ multiplier = 1.0
 
 [U9999999y]
 multiplier = 0.11
+use-inverse-etf = yes
+
+
+# some standard mapping from long ETF to short ones, for use-inverse-etf (i.e. cash) accounts
+[inverse-etfs]
+SOXL = SOXS
+TQQQ = SQQQ
+BOIL = KOLD
+LABU = LABD
 
 
 
