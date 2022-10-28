@@ -57,7 +57,6 @@ except Exception as e:
 r = redis.Redis(host='localhost', port=6379, db=0)
 p = r.pubsub()
 p.subscribe('tradingview')
-run = 1
 
 # function to round to the nearest decimal. y=10 for dimes, y=4 for quarters, y=100 for pennies
 def x_round(x,y):
@@ -99,12 +98,6 @@ async def check_messages():
     try:
 
         #print(f"{time.time()} - checking for tradingview webhook messages")
-        global run
-        if run > 3600: # quit about once an hour (and let the looping wrapper script restart this)
-            quit
-        run = run + 1
-
-        config.read('config.txt')
 
         message = p.get_message()
         if message is not None and message['type'] == 'message':
@@ -120,6 +113,8 @@ async def check_messages():
                 print("signal intended for different bot '",data_dict['strategy']['bot'],"', skipping")
                 return
 
+            config.read('config.txt')
+
             ## extract data from TV payload received via webhook
             order_symbol_orig          = data_dict['ticker']                             # ticker for which TV order was sent
             order_price_orig           = data_dict['strategy']['order_price']            # purchase price per TV
@@ -129,7 +124,7 @@ async def check_messages():
             round_precision = 100 # position variation minimum varies by security; start by assuming cents
 
             ## NORMALIZATION -- this is where you could check passwords, normalize from "short ETFL" to "long ETFS", etc.
-
+            is_futures = 1
             if order_symbol_orig == 'NQ1!':
                 order_symbol_orig = 'NQ'
                 stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
@@ -164,8 +159,10 @@ async def check_messages():
                 round_precision = 10
             elif data_dict['exchange'] == 'TSX':
                 stock = Stock(order_symbol_orig, 'SMART', 'CAD')
+                is_futures = 0
             else:
                 stock = Stock(order_symbol_orig, 'SMART', 'USD')
+                is_futures = 0
 
             for account in accounts:
                 ## PLACING THE ORDER
@@ -184,6 +181,11 @@ async def check_messages():
                         throw("You need to specify the multiplier for account " + account + " in config.txt")
 
                 print("working on trade for account ", account, " symbol ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+
+                # check for futures permissions (default is allow)
+                if is_futures and 'use-futures' in config[account] and config[account]['use-futures'] == 'no':
+                    print("this account doesn't allow futures; skipping")
+                    continue
 
                 bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
                 bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
@@ -338,10 +340,13 @@ async def check_messages():
         handle_ex(e)
         raise
 
+runcount = 1
 async def run_periodically(interval, periodic_function):
-    while True:
+    global runcount
+    while runcount < 3600:
         await asyncio.gather(asyncio.sleep(interval), periodic_function())
-
+        runcount = runcount + 1
+    sys.exit()
 asyncio.run(run_periodically(1, check_messages))
 
 ib.run()
