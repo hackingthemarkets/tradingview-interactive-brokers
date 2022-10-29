@@ -69,9 +69,9 @@ if accountlist and accountlist != "":
     accounts = accountlist.split(",")
 
 def get_price(symbol):
-    stockdata = yf.Ticker(symbol).info
+    #stockdata = yf.Ticker(symbol).info
     #print("stock ", symbol, " : ", stockdata)
-    return stockdata['regularMarketPrice']
+    #return stockdata['regularMarketPrice']
 
 
     contract = Stock(symbol,'SMART','USD')
@@ -90,6 +90,7 @@ def get_price(symbol):
     else:
         precio = ticker.last
         tipo = 'Last'
+    print("stock ", symbol, " : ", precio)
     return precio
 
 
@@ -118,6 +119,7 @@ async def check_messages():
             ## extract data from TV payload received via webhook
             order_symbol_orig          = data_dict['ticker']                             # ticker for which TV order was sent
             order_price_orig           = data_dict['strategy']['order_price']            # purchase price per TV
+            order_price_orig           = get_price(order_symbol_orig)                    # override price
             market_position_orig       = data_dict['strategy']['market_position']        # order direction: long, short, or flat
             market_position_size_orig  = data_dict['strategy']['market_position_size']   # desired position after order per TV
 
@@ -189,6 +191,9 @@ async def check_messages():
 
                 bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
                 bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
+
+                bar_high = order_price
+                bar_low = order_price
 
                 #######################################################################
                 ## Fix from short to a short ETF, if this account needs it.
