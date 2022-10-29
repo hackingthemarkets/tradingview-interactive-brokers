@@ -119,7 +119,7 @@ async def check_messages():
             ## extract data from TV payload received via webhook
             order_symbol_orig          = data_dict['ticker']                             # ticker for which TV order was sent
             order_price_orig           = data_dict['strategy']['order_price']            # purchase price per TV
-            order_price_orig           = get_price(order_symbol_orig)                    # override price
+            order_price_orig           = get_price(order_symbol_orig)                    # override price from IB
             market_position_orig       = data_dict['strategy']['market_position']        # order direction: long, short, or flat
             market_position_size_orig  = data_dict['strategy']['market_position_size']   # desired position after order per TV
 
@@ -189,12 +189,6 @@ async def check_messages():
                     print("this account doesn't allow futures; skipping")
                     continue
 
-                bar_high     = data_dict['bar']['high']                        # previous bar high per TV payload
-                bar_low      = data_dict['bar']['low']                         # previous bar low per TV payload
-
-                bar_high = order_price
-                bar_low = order_price
-
                 #######################################################################
                 ## Fix from short to a short ETF, if this account needs it.
                 #######################################################################
@@ -215,8 +209,6 @@ async def check_messages():
                     order_symbol = short_symbol
                     market_position = "long"
                     market_position_size = round(market_position_size * long_price / short_price)
-                    bar_high = short_price
-                    bar_low = short_price
                     order_price = short_price
                     print("switching to short ETF ", order_symbol, " to position ", market_position_size, " at price ", order_price)
 
@@ -234,8 +226,8 @@ async def check_messages():
                     desired_qty = 0.0
 
                 ## calculate a conservative limit order
-                high_limit_price = x_round(max(order_price, bar_high) * 1.005, round_precision)
-                low_limit_price  = x_round(min(order_price, bar_low) * 0.995, round_precision)
+                high_limit_price = x_round(order_price * 1.005, round_precision)
+                low_limit_price  = x_round(order_price * 0.995, round_precision)
 
                 #######################################################################
                 ## Check if the time lapsed between previous order and current order
