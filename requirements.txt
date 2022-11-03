@@ -1,5 +1,5 @@
 redis
 ib_insync
-flask==2.0
+flask>=2.0
 alpaca_trade_api 
 textmagic

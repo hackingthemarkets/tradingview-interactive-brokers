@@ -68,19 +68,17 @@ accountlist = config['DEFAULT']['accounts-'+bot]
 if accountlist and accountlist != "":
     accounts = accountlist.split(",")
 
-def get_price(symbol):
+def get_price(symbol, stock):
     #stockdata = yf.Ticker(symbol).info
     #print("stock ", symbol, " : ", stockdata)
     #return stockdata['regularMarketPrice']
 
-
-    contract = Stock(symbol,'SMART','USD')
     #ib.reqMarketDataType(4)
     #ticker = ib.reqMktData(contract)
     #while ticker.last != ticker.last: 
     #    ib.sleep(0.01) #Wait until data is in. 
     #ib.cancelMktData(contract)
-    [ticker] = ib.reqTickers(contract)
+    [ticker] = ib.reqTickers(stock)
     if math.isnan(ticker.last):
         if math.isnan(ticker.close):
             raise Exception("error trying to retrieve stock price for " + symbol)
@@ -119,7 +117,6 @@ async def check_messages():
             ## extract data from TV payload received via webhook
             order_symbol_orig          = data_dict['ticker']                             # ticker for which TV order was sent
             order_price_orig           = data_dict['strategy']['order_price']            # purchase price per TV
-            order_price_orig           = get_price(order_symbol_orig)                    # override price from IB
             market_position_orig       = data_dict['strategy']['market_position']        # order direction: long, short, or flat
             market_position_size_orig  = data_dict['strategy']['market_position_size']   # desired position after order per TV
 
@@ -129,60 +126,79 @@ async def check_messages():
             is_futures = 1
             if order_symbol_orig == 'NQ1!':
                 order_symbol_orig = 'NQ'
-                stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
+                stock_orig = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for Q's for now, keep risk managed
                 round_precision = 4
             elif order_symbol_orig == 'ES1!':
                 order_symbol_orig = 'ES'
-                stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for now
+                stock_orig = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for now
                 round_precision = 4
             elif order_symbol_orig == 'RTY1!':
                 order_symbol_orig = 'RTY'
-                stock = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for now
+                stock_orig = Future(order_symbol_orig, '20221216', 'GLOBEX') # go with mini futures for now
                 round_precision = 10
             elif order_symbol_orig == 'CL1!':
                 order_symbol_orig = 'CL'
-                stock = Future(order_symbol_orig, '20220920', 'NYMEX')
+                stock_orig = Future(order_symbol_orig, '20220920', 'NYMEX')
                 round_precision = 10
             elif order_symbol_orig == 'NG1!':
                 order_symbol_orig = 'NG'
-                stock = Future(order_symbol_orig, '20220920', 'NYMEX')
+                stock_orig = Future(order_symbol_orig, '20220920', 'NYMEX')
                 round_precision = 10
             elif order_symbol_orig == 'HG1!':
                 order_symbol_orig = 'HG'
-                stock = Future(order_symbol_orig, '20220928', 'NYMEX')
+                stock_orig = Future(order_symbol_orig, '20220928', 'NYMEX')
                 round_precision = 10
             elif order_symbol_orig == '6J1!':
                 order_symbol_orig = 'J7'
-                stock = Future(order_symbol_orig, '20220919', 'GLOBEX')
+                stock_orig = Future(order_symbol_orig, '20220919', 'GLOBEX')
                 round_precision = 10
             elif order_symbol_orig == 'HEN2022':
                 order_symbol_orig = 'HE'
-                stock = Future(order_symbol_orig, '20220715', 'NYMEX')
+                stock_orig = Future(order_symbol_orig, '20220715', 'NYMEX')
                 round_precision = 10
             elif data_dict['exchange'] == 'TSX':
-                stock = Stock(order_symbol_orig, 'SMART', 'CAD')
+                stock_orig = Stock(order_symbol_orig, 'SMART', 'CAD')
                 is_futures = 0
             else:
-                stock = Stock(order_symbol_orig, 'SMART', 'USD')
+                stock_orig = Stock(order_symbol_orig, 'SMART', 'USD')
                 is_futures = 0
+
+            order_price_orig           = get_price(order_symbol_orig, stock_orig)              # override price from IB
 
             for account in accounts:
                 ## PLACING THE ORDER
+
+                print("")
+
                 order_symbol = order_symbol_orig
                 order_price = order_price_orig
                 market_position = market_position_orig
                 market_position_size = market_position_size_orig
+                stock = stock_orig
 
+                # check for security conversion (generally futures to ETF); format is "mult x ETF"
+                if order_symbol_orig in config[account]:
+                    print("switching from ", order_symbol_orig, " to ", config[account][order_symbol_orig])
+                    [switchmult, x, order_symbol] = config[account][order_symbol_orig].split()
+                    switchmult = int(switchmult)
+                    market_position_size = round(market_position_size * switchmult)
+                    stock = Stock(order_symbol, 'SMART', 'USD') # TODO: have to make this assumption for now
+                    order_price = get_price(order_symbol, stock)
+                    is_futures = 0
+
+                # check for overall multipliers on the account, vs whatever position sizes are coming in from TV
                 if account != "DEFAULT":
                     if (account in config 
                         and "multiplier" in config[account] 
                         and config[account]["multiplier"] != ""
                         ):
-                        market_position_size = round(market_position_size_orig * float(config[account]["multiplier"]))
+                        if not is_futures:
+                            print("multiplying position by ",float(config[account]["multiplier"]))
+                            market_position_size = round(market_position_size * float(config[account]["multiplier"]))
                     else:
                         throw("You need to specify the multiplier for account " + account + " in config.txt")
 
-                print("working on trade for account ", account, " symbol ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+                print("** WORKING ON TRADE for account ", account, " symbol ", order_symbol, " to position ", market_position_size, " at price ", order_price)
 
                 # check for futures permissions (default is allow)
                 if is_futures and 'use-futures' in config[account] and config[account]['use-futures'] == 'no':
@@ -199,17 +215,17 @@ async def check_messages():
                     and config[account]['use-inverse-etf'] == 'yes'
                     ):
 
+                    long_price = get_price(order_symbol, stock)
                     short_symbol = config['inverse-etfs'][order_symbol]
-                    long_price = get_price(order_symbol)
-                    short_price = get_price(short_symbol)
                     if data_dict['exchange'] == 'TSX':
                         stock = Stock(short_symbol, 'SMART', 'CAD')
                     else:
                         stock = Stock(short_symbol, 'SMART', 'USD')
                     order_symbol = short_symbol
+                    short_price = get_price(order_symbol, stock)
+                    order_price = short_price
                     market_position = "long"
                     market_position_size = round(market_position_size * long_price / short_price)
-                    order_price = short_price
                     print("switching to short ETF ", order_symbol, " to position ", market_position_size, " at price ", order_price)
 
                     # TODO: handle long-short transitions
@@ -256,7 +272,7 @@ async def check_messages():
 
                 print("getting positions")
                 positions = ib.positions()
-                print(positions)
+                #print(positions)
                 for i in positions:
                     if i.contract.symbol == order_symbol and (account=='DEFAULT' or i.account==account):
                         position = i.position
@@ -266,9 +282,9 @@ async def check_messages():
                 #### cancel if there are open orders for the order_symbol
                 #######################################################################
 
-                print("getting trades")
-                opentrades = ib.openTrades()
-                print(opentrades)
+                #print("getting trades")
+                #opentrades = ib.openTrades()
+                #print(opentrades)
                 #for t in opentrades:
                 #    if t.contract.symbol == order_symbol and (account=='DEFAULT' or t.order.account==account):
                 #        ib.cancelOrder(t.order)
