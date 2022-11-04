@@ -1,4 +1,4 @@
-import redis, sqlite3, time, os, hashlib
+import redis, sqlite3, time, os, hashlib, math
 from flask import Flask, render_template, request, g, current_app
 
 app = Flask(__name__)
@@ -32,20 +32,31 @@ cursor = conn.cursor()
 try:
     cursor.execute("ALTER TABLE signals ADD COLUMN order_message text")
     conn.commit()
-except:
-    pass
+except: pass
+
 cursor = conn.cursor()
 try:
     cursor.execute("ALTER TABLE signals ADD COLUMN bot text")
     conn.commit()
-except:
-    pass
+except: pass
+
+cursor = conn.cursor()
+try:
+    cursor.execute("ALTER TABLE signals ADD COLUMN market_position text")
+    conn.commit()
+except: pass
+
+cursor = conn.cursor()
+try:
+    cursor.execute("ALTER TABLE signals ADD COLUMN market_position_size text")
+    conn.commit()
+except: pass
+
 
 @app.context_processor
 def add_imports():
     # Note: we only define the top-level module names!
-    return dict(hashlib=hashlib, time=time, os=os)
-
+    return dict(hashlib=hashlib, time=time, os=os, math=math)
 
 ## ROUTES
 
@@ -60,6 +71,8 @@ def dashboard():
         bot,
         order_action,
         order_contracts,
+        market_position,
+        market_position_size,
         order_price,
         order_message
         FROM signals
@@ -102,11 +115,14 @@ def webhook():
         db = get_db()
         cursor = db.cursor()
         cursor.execute("""
-            INSERT INTO signals (ticker, bot, order_action, order_contracts, order_price, order_message) 
-            VALUES (?, ?, ?, ?, ?)
-        """, (data_dict['ticker'], data_dict['strategy']['bot'],
+            INSERT INTO signals (ticker, bot, order_action, order_contracts, market_position, market_position_size, order_price, order_message) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (data_dict['ticker'], 
+                data_dict['strategy']['bot'],
                 data_dict['strategy']['order_action'], 
                 data_dict['strategy']['order_contracts'],
+                data_dict['strategy']['market_position'],
+                data_dict['strategy']['market_position_size'],
                 data_dict['strategy']['order_price'],
                 request.get_data()))
         db.commit()

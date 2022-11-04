@@ -7,27 +7,36 @@
     <body>
         <div class="container">
             <h1>Signals</h1>
-            <table class="table">
-                <tr>
-                    <th>timestamp</th>
-                    <th>bot</th>
-                    <th>ticker</th>
-                    <th>action</th>
-                    <th>quantity</th>
-                    <th>price</th>
-                    <th>action</th>
-                </tr>
-                {% for signal in signals %}
-                <tr>
-                    <td>{{ signal.timestamp }}</td>
-                    <td>{{ signal.bot }}</td>
-                    <td>{{ signal.ticker }}</td>
-                    <td>{{ signal.order_action }}</td>
-                    <td>{{ signal.order_contracts }}</td>
-                    <td>{{ signal.order_price }}</td>
-                    <td><a href="/resend?hash={{ hashlib.sha1(signal.order_message).hexdigest() }}">Resend</a></td>
-                </tr>
-                {% endfor %}
+            <table class="table table-striped">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>timestamp</th>
+                        <th>bot</th>
+                        <th>ticker</th>
+                        <th>action</th>
+                        <th>quantity</th>
+                        <th>mkt pos</th>
+                        <th>mkt pos size</th>
+                        <th>price</th>
+                        <th>action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for signal in signals %}
+                    <tr>
+                        <td>{{ signal.timestamp }}</td>
+                        <td>{{ signal.bot or "" }}</td>
+                        <td>{{ signal.ticker }}</td>
+                        <td>{{ signal.order_action }}</td>
+                        <td>{{ signal.order_contracts }}</td>
+                        <td>{{ signal.market_position or "" }}</td>
+
+                        <td>{{ signal.market_position_size or "" }}</td>
+                        <td>{{ signal.order_price }}</td>
+                        <td><a href="/resend?hash={{ hashlib.sha1(signal.order_message).hexdigest() }}">Resend</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
     </body>

@@ -229,6 +229,7 @@ async def check_messages():
                     print("switching to short ETF ", order_symbol, " to position ", market_position_size, " at price ", order_price)
 
                     # TODO: handle long-short transitions
+                    # TODO: handle go-flat orders (needs to sell both long and short ETF)
 
 
                 # Place order
