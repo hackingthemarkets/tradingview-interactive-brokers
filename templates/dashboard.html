@@ -10,20 +10,22 @@
             <table class="table">
                 <tr>
                     <th>timestamp</th>
+                    <th>bot</th>
                     <th>ticker</th>
                     <th>action</th>
                     <th>quantity</th>
                     <th>price</th>
-                    <th>message</th>
+                    <th>action</th>
                 </tr>
                 {% for signal in signals %}
                 <tr>
                     <td>{{ signal.timestamp }}</td>
+                    <td>{{ signal.bot }}</td>
                     <td>{{ signal.ticker }}</td>
                     <td>{{ signal.order_action }}</td>
                     <td>{{ signal.order_contracts }}</td>
                     <td>{{ signal.order_price }}</td>
-                    <td style="font-size:6pt">{{ signal.order_message}}</td>
+                    <td><a href="/resend?hash={{ hashlib.sha1(signal.order_message).hexdigest() }}">Resend</a></td>
                 </tr>
                 {% endfor %}
             </table>

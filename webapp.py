@@ -1,4 +1,4 @@
-import redis, sqlite3, time, os
+import redis, sqlite3, time, os, hashlib
 from flask import Flask, render_template, request, g, current_app
 
 app = Flask(__name__)
@@ -34,8 +34,22 @@ try:
     conn.commit()
 except:
     pass
+cursor = conn.cursor()
+try:
+    cursor.execute("ALTER TABLE signals ADD COLUMN bot text")
+    conn.commit()
+except:
+    pass
 
-# web url routes below
+@app.context_processor
+def add_imports():
+    # Note: we only define the top-level module names!
+    return dict(hashlib=hashlib, time=time, os=os)
+
+
+## ROUTES
+
+# GET /
 @app.get('/')
 def dashboard():
     db = get_db()
@@ -43,6 +57,7 @@ def dashboard():
     cursor.execute("""
         SELECT datetime(timestamp, 'localtime') as timestamp,
         ticker,
+        bot,
         order_action,
         order_contracts,
         order_price,
@@ -51,8 +66,28 @@ def dashboard():
         order by timestamp desc
     """)
     signals = cursor.fetchall()
-    return render_template('dashboard.html', signals=signals)
+    #hashlib.sha1(row['order_message'])
 
+    return render_template('dashboard.html', signals=signals, sha1=hashlib.sha1)
+
+# GET /resend?hash=xxx
+@app.get('/resend')
+def resend():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT order_message
+        FROM signals
+        order by timestamp desc
+    """)
+    signals = cursor.fetchall()
+    for row in signals:
+        if request.args.get("hash") == hashlib.sha1(row["order_message"]).hexdigest():
+            r.publish('tradingview', row["order_message"])
+            return "<html><body>Done!<br><br><a href=/>Back to Home</a></body></html>"
+    return "<html><body>Done!<br><br><a href=/>Back to Home</a></body></html>"
+
+# POST /webhook
 @app.post("/webhook")
 def webhook():
     data = request.data
@@ -67,23 +102,21 @@ def webhook():
         db = get_db()
         cursor = db.cursor()
         cursor.execute("""
-            INSERT INTO signals (ticker, order_action, order_contracts, order_price, order_message) 
+            INSERT INTO signals (ticker, bot, order_action, order_contracts, order_price, order_message) 
             VALUES (?, ?, ?, ?, ?)
-        """, (data_dict['ticker'], 
+        """, (data_dict['ticker'], data_dict['strategy']['bot'],
                 data_dict['strategy']['order_action'], 
                 data_dict['strategy']['order_contracts'],
                 data_dict['strategy']['order_price'],
                 request.get_data()))
-
         db.commit()
 
         return data
 
-    return {
-        "code": "success"
-    }
+    return {"code": "success"}
 
-@app.post("/killngrok")
+# POST /killngrok
+@app.get("/killngrok")
 def killngrok():
     stream = os.popen('killall ngrok')
     output = stream.read()
