@@ -22,6 +22,11 @@ alpaca-key = YOURKEY
 alpaca-secret = YOURSECRET
 
 
+# Global multiplier
+
+multiplier = 1.0
+
+
 # For each IB bot, you can list your accounts, comma delimited, and they'll all get the trades with 
 # a proportional multiplier; otherwise just the main account will get the trades
 accounts-live = U9999999x,U9999999y

@@ -138,11 +138,11 @@ async def check_messages():
                 round_precision = 10
             elif order_symbol_orig == 'CL1!':
                 order_symbol_orig = 'CL'
-                stock_orig = Future(order_symbol_orig, '20220920', 'NYMEX')
+                stock_orig = Future(order_symbol_orig, '20221220', 'NYMEX')
                 round_precision = 10
             elif order_symbol_orig == 'NG1!':
                 order_symbol_orig = 'NG'
-                stock_orig = Future(order_symbol_orig, '20220920', 'NYMEX')
+                stock_orig = Future(order_symbol_orig, '20221220', 'NYMEX')
                 round_precision = 10
             elif order_symbol_orig == 'HG1!':
                 order_symbol_orig = 'HG'
@@ -180,11 +180,17 @@ async def check_messages():
                 if order_symbol_orig in config[account]:
                     print("switching from ", order_symbol_orig, " to ", config[account][order_symbol_orig])
                     [switchmult, x, order_symbol] = config[account][order_symbol_orig].split()
-                    switchmult = int(switchmult)
+                    switchmult = float(switchmult)
                     market_position_size = round(market_position_size * switchmult)
                     stock = Stock(order_symbol, 'SMART', 'USD') # TODO: have to make this assumption for now
                     order_price = get_price(order_symbol, stock)
                     is_futures = 0
+
+                # check for global multipliers, vs whatever position sizes are coming in from TV
+                if (config['DEFAULT']["multiplier"] != ""):
+                    if not is_futures:
+                        print("multiplying position by ",float(config['DEFAULT']["multiplier"]))
+                        market_position_size = round(market_position_size * float(config['DEFAULT']["multiplier"]))
 
                 # check for overall multipliers on the account, vs whatever position sizes are coming in from TV
                 if account != "DEFAULT":

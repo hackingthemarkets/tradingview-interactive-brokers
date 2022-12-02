@@ -6,5 +6,5 @@ logfile=$0.log
 export FLASK_APP=webapp
 export FLASK_ENV=development
 export PYTHONPATH=.
-flask run -p 6000 2>&1 |tee -a $logfile
+python3 -m flask run -p 6000 2>&1 |tee -a $logfile
 

@@ -6,35 +6,69 @@
 
     <body>
         <div class="container">
-            <h1>Signals</h1>
+            <h1>Live Signals</h1>
             <table class="table table-striped">
                 <thead class="thead-dark">
                     <tr>
                         <th>timestamp</th>
                         <th>bot</th>
                         <th>ticker</th>
-                        <th>action</th>
-                        <th>quantity</th>
                         <th>mkt pos</th>
                         <th>mkt pos size</th>
-                        <th>price</th>
+                        <th>price at that time</th>
                         <th>action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for signal in signals %}
+                    {% if signal.bot == 'live' %}
                     <tr>
                         <td>{{ signal.timestamp }}</td>
                         <td>{{ signal.bot or "" }}</td>
                         <td>{{ signal.ticker }}</td>
-                        <td>{{ signal.order_action }}</td>
-                        <td>{{ signal.order_contracts }}</td>
+                        <td>{{ signal.market_position or "" }}</td>
+
+                        <td>{{ signal.market_position_size or "" }}</td>
+                        <td>{{ signal.order_price }}</td>
+                        <td>
+                            <form method=post action=/resend>
+                            <input type=hidden name=hash value="{{ hashlib.sha1(signal.order_message).hexdigest() }}"></input>
+                            <input type=submit value="Resend"></input>
+                            </form>
+                        </td> 
+                        </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h1>Test Signals</h1>
+            <table class="table table-striped">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>timestamp</th>
+                        <th>bot</th>
+                        <th>ticker</th>
+                        <th>mkt pos</th>
+                        <th>mkt pos size</th>
+                        <th>price at that time</th>
+                        <th>action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for signal in signals %}
+                    {% if signal.bot != 'live' %}
+                    <tr>
+                        <td>{{ signal.timestamp }}</td>
+                        <td>{{ signal.bot or "" }}</td>
+                        <td>{{ signal.ticker }}</td>
                         <td>{{ signal.market_position or "" }}</td>
 
                         <td>{{ signal.market_position_size or "" }}</td>
                         <td>{{ signal.order_price }}</td>
                         <td><a href="/resend?hash={{ hashlib.sha1(signal.order_message).hexdigest() }}">Resend</a></td>
                     </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>

@@ -83,8 +83,8 @@ def dashboard():
 
     return render_template('dashboard.html', signals=signals, sha1=hashlib.sha1)
 
-# GET /resend?hash=xxx
-@app.get('/resend')
+# POST /resend?hash=xxx
+@app.post('/resend')
 def resend():
     db = get_db()
     cursor = db.cursor()
