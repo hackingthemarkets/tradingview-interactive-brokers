@@ -95,10 +95,10 @@ def resend():
     """)
     signals = cursor.fetchall()
     for row in signals:
-        if request.args.get("hash") == hashlib.sha1(row["order_message"]).hexdigest():
+        if request.form.get("hash") == hashlib.sha1(row["order_message"]).hexdigest():
             r.publish('tradingview', row["order_message"])
-            return "<html><body>Done!<br><br><a href=/>Back to Home</a></body></html>"
-    return "<html><body>Done!<br><br><a href=/>Back to Home</a></body></html>"
+            return "<html><body>Found it!<br><br><a href=/>Back to Home</a></body></html>"
+    return "<html><body>Didn't find it!<br><br><a href=/>Back to Home</a></body></html>"
 
 # POST /webhook
 @app.post("/webhook")

@@ -34,7 +34,11 @@ def handle_ex(e):
         tmp = config['DEFAULT']['textmagic-phone']
 
         tmc = TextmagicRestClient(tmu, tmk)
-        message = tmc.messages.create(phones=tmp, text="broker-ibkr " + bot + " FAIL " + traceback.format_exc()[0:300])
+        # if e is a string send it, otherwise send the first 300 chars of the traceback
+        if isinstance(e, str):
+            message = tmc.messages.create(phones=tmp, text="broker-ibkr " + bot + " FAIL " + e)
+        else:
+            message = tmc.messages.create(phones=tmp, text="broker-ibkr " + bot + " FAIL " + traceback.format_exc()[0:300])
 
 # note [bot] needs to be set in the TV alert json in the strategy section, ie bot='live'
 # ports are typically: 
@@ -68,28 +72,96 @@ accountlist = config['DEFAULT']['accounts-'+bot]
 if accountlist and accountlist != "":
     accounts = accountlist.split(",")
 
-def get_price(symbol, stock):
-    #stockdata = yf.Ticker(symbol).info
-    #print("stock ", symbol, " : ", stockdata)
-    #return stockdata['regularMarketPrice']
+stock_cache = {}
+def get_stock(symbol):
+    # keep a cache of stocks to avoid repeated calls to IB
+    if symbol in stock_cache:
+        stock = stock_cache[symbol]
+    else:
+        stock = Stock(symbol, 'SMART', 'USD')
+        stock_cache[symbol] = stock
+    return stock
 
-    #ib.reqMarketDataType(4)
-    #ticker = ib.reqMktData(contract)
-    #while ticker.last != ticker.last: 
-    #    ib.sleep(0.01) #Wait until data is in. 
-    #ib.cancelMktData(contract)
-    [ticker] = ib.reqTickers(stock)
+ticker_cache = {}
+def get_price(symbol, stock):
+    if stock is None:
+        stock = get_stock(symbol)
+
+    # keep a cache of tickers to avoid repeated calls to IB, but only for 5s
+    if symbol in ticker_cache and time.time() - ticker_cache[symbol]['time'] < 5:
+        ticker = ticker_cache[symbol]['ticker']
+    else:
+        [ticker] = ib.reqTickers(stock)
+        ticker_cache[symbol] = {'ticker': ticker, 'time': time.time()}
+
     if math.isnan(ticker.last):
         if math.isnan(ticker.close):
             raise Exception("error trying to retrieve stock price for " + symbol)
         else:
-            precio = ticker.close
-            tipo = 'Close'
+            price = ticker.close
     else:
-        precio = ticker.last
-        tipo = 'Last'
-    print("stock ", symbol, " : ", precio)
-    return precio
+        price = ticker.last
+    print(f"  get_price({symbol},{stock}) -> {price}")
+    return price
+
+def get_position_size(account, symbol, stock):
+    if stock is None:
+        stock = get_stock(symbol)
+
+    # get the current position size
+    position = None
+    for p in ib.positions(account):
+        if p.contract.symbol == symbol:
+            print(f"  get_position_size({account},{symbol},{stock}) -> {p.position}")
+            return p.position
+            break
+
+    print(f"  get_position_size({account},{symbol},{stock}) -> 0")
+    return 0
+
+def set_position_size(account, symbol, stock, amount, round_precision):
+    print(f"set_position_size({account},{symbol},{stock},{amount},{round_precision})")
+    if stock is None:
+        stock = get_stock(symbol)
+
+    # get the current position size
+    position_size = get_position_size(account, symbol, stock)
+
+    # figure out how much to buy or sell
+    position_variation = round(amount - position_size, 0)
+
+    # if we need to buy or sell, do it with a limit order
+    if position_variation != 0:
+        price = get_price(symbol, stock)
+        high_limit_price = x_round(price * 1.005, round_precision)
+        low_limit_price  = x_round(price * 0.995, round_precision)
+
+        if position_variation > 0:
+            order = LimitOrder('BUY', position_variation, high_limit_price)
+        else:
+            order = LimitOrder('SELL', abs(position_variation), low_limit_price)
+        order.outsideRth = True
+        order.account = account
+
+        print("  placing order: ", order)
+        trade = ib.placeOrder(stock, order)
+        print("    trade: ", trade)
+
+        # wait for the order to be filled, up to 30s
+        maxloops = 30
+        print("    waiting for trade1: ", trade)
+        while trade.orderStatus.status not in ['Filled','PreSubmitted','Cancelled','Inactive'] and maxloops > 0:
+            ib.sleep(1)
+            print("    waiting for trade2: ", trade)
+            maxloops -= 1
+
+        # throw exception on order failure
+        if trade.orderStatus.status not in ['Filled','PreSubmitted']:
+            msg = f"ORDER FAILED: set_position_size({account},{symbol},{stock},{amount},{round_precision}) -> {trade.orderStatus}"
+            print(msg)
+            handle_ex(msg)
+
+        print("order filled")
 
 
 print("Waiting for webhook messages...")
@@ -170,10 +242,11 @@ async def check_messages():
 
                 print("")
 
+                # set up variables for this account, normalizing market position to be positive or negative based on long or short
+                desired_position = market_position_size_orig
+                if market_position_orig == "short": desired_position = -market_position_size_orig
                 order_symbol = order_symbol_orig
                 order_price = order_price_orig
-                market_position = market_position_orig
-                market_position_size = market_position_size_orig
                 stock = stock_orig
 
                 # check for security conversion (generally futures to ETF); format is "mult x ETF"
@@ -181,7 +254,7 @@ async def check_messages():
                     print("switching from ", order_symbol_orig, " to ", config[account][order_symbol_orig])
                     [switchmult, x, order_symbol] = config[account][order_symbol_orig].split()
                     switchmult = float(switchmult)
-                    market_position_size = round(market_position_size * switchmult)
+                    desired_position = round(desired_position * switchmult)
                     stock = Stock(order_symbol, 'SMART', 'USD') # TODO: have to make this assumption for now
                     order_price = get_price(order_symbol, stock)
                     is_futures = 0
@@ -190,7 +263,7 @@ async def check_messages():
                 if (config['DEFAULT']["multiplier"] != ""):
                     if not is_futures:
                         print("multiplying position by ",float(config['DEFAULT']["multiplier"]))
-                        market_position_size = round(market_position_size * float(config['DEFAULT']["multiplier"]))
+                        desired_position = round(desired_position * float(config['DEFAULT']["multiplier"]))
 
                 # check for overall multipliers on the account, vs whatever position sizes are coming in from TV
                 if account != "DEFAULT":
@@ -200,21 +273,19 @@ async def check_messages():
                         ):
                         if not is_futures:
                             print("multiplying position by ",float(config[account]["multiplier"]))
-                            market_position_size = round(market_position_size * float(config[account]["multiplier"]))
+                            desired_position = round(desired_position * float(config[account]["multiplier"]))
                     else:
-                        throw("You need to specify the multiplier for account " + account + " in config.txt")
+                        raise Exception("You need to specify the multiplier for account " + account + " in config.txt")
 
-                print("** WORKING ON TRADE for account ", account, " symbol ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+                print(f"** WORKING ON TRADE for account {account} symbol {order_symbol} to position {desired_position} at price {order_price}")
 
                 # check for futures permissions (default is allow)
                 if is_futures and 'use-futures' in config[account] and config[account]['use-futures'] == 'no':
                     print("this account doesn't allow futures; skipping")
                     continue
 
-                #######################################################################
-                ## Fix from short to a short ETF, if this account needs it.
-                #######################################################################
-                if (market_position == 'short' 
+                # switch from short a long ETF to long a short ETF, if this account needs it
+                if (desired_position < 0
                     and order_symbol in config['inverse-etfs']
                     and account != 'DEFAULT' 
                     and 'use-inverse-etf' in config[account] 
@@ -227,37 +298,17 @@ async def check_messages():
                         stock = Stock(short_symbol, 'SMART', 'CAD')
                     else:
                         stock = Stock(short_symbol, 'SMART', 'USD')
+
+                    # now continue with the short ETF
                     order_symbol = short_symbol
                     short_price = get_price(order_symbol, stock)
                     order_price = short_price
-                    market_position = "long"
-                    market_position_size = round(market_position_size * long_price / short_price)
-                    print("switching to short ETF ", order_symbol, " to position ", market_position_size, " at price ", order_price)
+                    desired_position = abs(round(desired_position * long_price / short_price))
+                    print(f"switching to inverse ETF {order_symbol}, to position {desired_position} at price ", order_price)
 
                     # TODO: handle long-short transitions
-                    # TODO: handle go-flat orders (needs to sell both long and short ETF)
 
-
-                # Place order
-
-                ## set the order_qty sign based on whether the final position is long or short
-                if (market_position == "long"):
-                    desired_qty = +market_position_size
-                elif (market_position == "short"):
-                    desired_qty = -market_position_size
-                else:
-                    desired_qty = 0.0
-
-                ## calculate a conservative limit order
-                high_limit_price = x_round(order_price * 1.005, round_precision)
-                low_limit_price  = x_round(order_price * 0.995, round_precision)
-
-                #######################################################################
-                ## Check if the time lapsed between previous order and current order
-                ## is less than 2 minutes.  If so, check if the current order qty
-                ## is zero. i.e., it is closing active position. If so, skip the order.
-                #######################################################################
-
+                # skip if two signals came out of order and we got a goflat after a non-goflat order
                 current_time = datetime.datetime.now()
                 last_time = datetime.datetime(1970,1,1)
                 if order_symbol+bot in last_time_traded:
@@ -265,95 +316,51 @@ async def check_messages():
                 delta = current_time - last_time
                 last_time_traded[order_symbol+bot+account] = current_time
 
-                if (delta.total_seconds() < 120):
-                    if desired_qty == 0:
+                if delta.total_seconds() < 120:
+                    if desired_position == 0:
                         print("skipping order, seems to be a direction changing exit")
                         return
 
-                #######################################################################
-                #### check if there is already a position for the order_symbol
-                #######################################################################
+                current_position = get_position_size(account, order_symbol, stock)
 
-                position = 0
-                current_qty = 0.0
+                # if this account uses long and short ETF's, close them both
+                if (desired_position == 0
+                    and order_symbol in config['inverse-etfs']
+                    and account != 'DEFAULT' 
+                    and 'use-inverse-etf' in config[account] 
+                    and config[account]['use-inverse-etf'] == 'yes'
+                    ):
 
-                print("getting positions")
-                positions = ib.positions()
-                #print(positions)
-                for i in positions:
-                    if i.contract.symbol == order_symbol and (account=='DEFAULT' or i.account==account):
-                        position = i.position
-                        current_qty = i.position
-
-                #######################################################################
-                #### cancel if there are open orders for the order_symbol
-                #######################################################################
-
-                #print("getting trades")
-                #opentrades = ib.openTrades()
-                #print(opentrades)
-                #for t in opentrades:
-                #    if t.contract.symbol == order_symbol and (account=='DEFAULT' or t.order.account==account):
-                #        ib.cancelOrder(t.order)
-
-                ########################################################################
-                ### if there is an existing position but in the opposite direction
-                ### api doesn't allow directly going from long to short ot short to long
-                ### so, close the opposite position first before opening the order
-                ########################################################################
-
-                opposite_sides = (current_qty < 0 and desired_qty > 0) or (current_qty > 0 and desired_qty < 0)
-
-                if opposite_sides:
-                # existing position is in the opposite direction of order
-
-                    if (current_qty < 0):
-                        closing_side = "buy"
-                        limit_price = high_limit_price
-                        print('sending order to reduce short position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+                    print('sending order to reduce long position to flat')
+                    short_symbol = config['inverse-etfs'][order_symbol]
+                    if data_dict['exchange'] == 'TSX':
+                        short_stock = Stock(short_symbol, 'SMART', 'CAD')
                     else:
-                        closing_side = "sell"
-                        limit_price = low_limit_price
-                        print('sending order to reduce long position to flat, to price limit',limit_price,' low=',low_limit_price,' high=',high_limit_price)
+                        short_stock = Stock(short_symbol, 'SMART', 'USD')
+                    set_position_size(account, order_symbol, stock, 0, round_precision)
 
-                    order = LimitOrder(closing_side, abs(current_qty), limit_price)
-                    order.outsideRth = True
-                    if account != 'DEFAULT': order.account = account
-                    trade = ib.placeOrder(stock, order)
-                    maxloop = 60   # 60s time limit for the flattening order
-                    while not trade.isDone():
-                        ib.sleep(1)
-                        maxloop = maxloop - 1
-                        if maxloop == 0:
-                            raise Exception('** CASHING OUT ORDER TIMEOUT! Aborting to look for new orders')
-                            return
-                    current_qty = 0
-                    print('done order')
-
-
-                ########################################################
-                ## Now, place the order to build up the desired position
-                ########################################################
-
-                if desired_qty != current_qty:
-                    order_qty = abs(desired_qty - current_qty)
-
-                    if (desired_qty > current_qty):
-                        desired_action = "buy"
-                        limit_price = high_limit_price
+                    short_symbol = config['inverse-etfs'][order_symbol]
+                    if data_dict['exchange'] == 'TSX':
+                        short_stock = Stock(short_symbol, 'SMART', 'CAD')
                     else:
-                        desired_action = "sell"
-                        limit_price = low_limit_price
-
-                    print('sending order to reach desired position, to quantity',desired_qty,', price limit',limit_price)
-                    order = LimitOrder(desired_action, order_qty, limit_price)
-                    order.outsideRth = True
-                    if account != 'DEFAULT': order.account = account
-                    trade = ib.placeOrder(stock, order)
-                    ib.sleep(1)
-                    print('done placing order')
+                        short_stock = Stock(short_symbol, 'SMART', 'USD')
+                    print('sending order to reduce short position to flat')
+                    set_position_size(account, short_symbol, short_stock, 0, round_precision)
                 else:
-                    print('desired quantity is the same as the current quantity.  No order placed.')
+                    # existing position is in the opposite direction of order
+                    opposite_sides = (current_position < 0 and desired_position > 0) or (current_position > 0 and desired_position < 0)
+                    if opposite_sides:
+                        print('sending order to reduce short position to flat')
+                        set_position_size(account, order_symbol, stock, 0, round_precision)
+                        current_position = 0
+                        print('done order')
+
+                    # now let's go ahead and place the order to reach the desired position
+                    if desired_position != current_position:
+                        print(f"sending order to reach desired position of {desired_position} shares")
+                        set_position_size(account, order_symbol, stock, desired_position, round_precision)
+                    else:
+                        print('desired quantity is the same as the current quantity.  No order placed.')
 
 
     except Exception as e:
