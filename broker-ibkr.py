@@ -104,6 +104,18 @@ def get_price(symbol, stock):
     print(f"  get_price({symbol},{stock}) -> {price}")
     return price
 
+def get_net_liquidity(account):
+    # get the current net liquidity
+    net_liquidity = 0
+    accountSummary = ib.accountSummary(account)
+    for value in accountSummary:
+        if value.tag == 'NetLiquidation':
+            net_liquidity = float(value.value)
+            break
+
+    print(f"  get_net_liquidity({account}) -> {net_liquidity}")
+    return net_liquidity
+
 def get_position_size(account, symbol, stock):
     if stock is None:
         stock = get_stock(symbol)
@@ -235,8 +247,6 @@ async def check_messages():
                 stock_orig = Stock(order_symbol_orig, 'SMART', 'USD')
                 is_futures = 0
 
-            order_price_orig           = get_price(order_symbol_orig, stock_orig)              # override price from IB
-
             for account in accounts:
                 ## PLACING THE ORDER
 
@@ -246,8 +256,33 @@ async def check_messages():
                 desired_position = market_position_size_orig
                 if market_position_orig == "short": desired_position = -market_position_size_orig
                 order_symbol = order_symbol_orig
-                order_price = order_price_orig
                 stock = stock_orig
+                #order_price = order_price_orig
+                order_price = get_price(order_symbol, stock)
+
+                print(f"** WORKING ON TRADE for account {account} symbol {order_symbol} to position {desired_position} at price {order_price}")
+
+                # check for account and security specific percentage of net liquidity in config
+                # (if it's not a goflat order
+                if not is_futures and desired_position != 0 and account in config and f"{order_symbol} pct" in config[account]:
+                    percent = float(config[account][f"{order_symbol} pct"])
+                    # first, we find the value of the desired position in dollars, and set up some tiers
+                    # to support various levels of take-profits
+                    if round(abs(desired_position) * order_price) < 5000:
+                        # assume it's a 99% take-profit level
+                        percent = percent * 0.01
+                    elif round(abs(desired_position) * order_price) < 35000:
+                        # assume it's a 80% take-profit level
+                        percent = percent * 0.2
+                    # otherwise just go with the default full buy
+
+                    # now we find the net liquidity in dollars
+                    net_liquidity = get_net_liquidity(account)
+                    # and then we find the desired position in shares
+                    new_desired_position = round(net_liquidity * (percent/100) / order_price)
+                    if desired_position < 0: new_desired_position = -new_desired_position
+                    print(f"using account specific net liquidity {percent}% for {order_symbol}: {desired_position} -> {new_desired_position}")
+                    desired_position = new_desired_position
 
                 # check for security conversion (generally futures to ETF); format is "mult x ETF"
                 if order_symbol_orig in config[account]:
@@ -260,24 +295,18 @@ async def check_messages():
                     is_futures = 0
 
                 # check for global multipliers, vs whatever position sizes are coming in from TV
-                if (config['DEFAULT']["multiplier"] != ""):
-                    if not is_futures:
-                        print("multiplying position by ",float(config['DEFAULT']["multiplier"]))
-                        desired_position = round(desired_position * float(config['DEFAULT']["multiplier"]))
+                if not is_futures and "multiplier" in config['DEFAULT'] and config['DEFAULT']["multiplier"] != "":
+                    print("multiplying position by ",float(config['DEFAULT']["multiplier"]))
+                    desired_position = round(desired_position * float(config['DEFAULT']["multiplier"]))
 
                 # check for overall multipliers on the account, vs whatever position sizes are coming in from TV
-                if account != "DEFAULT":
-                    if (account in config 
+                if (not is_futures and account != "DEFAULT"
+                        and account in config 
                         and "multiplier" in config[account] 
                         and config[account]["multiplier"] != ""
                         ):
-                        if not is_futures:
-                            print("multiplying position by ",float(config[account]["multiplier"]))
-                            desired_position = round(desired_position * float(config[account]["multiplier"]))
-                    else:
-                        raise Exception("You need to specify the multiplier for account " + account + " in config.txt")
-
-                print(f"** WORKING ON TRADE for account {account} symbol {order_symbol} to position {desired_position} at price {order_price}")
+                    print("multiplying position by ",float(config[account]["multiplier"]))
+                    desired_position = round(desired_position * float(config[account]["multiplier"]))
 
                 # check for futures permissions (default is allow)
                 if is_futures and 'use-futures' in config[account] and config[account]['use-futures'] == 'no':
