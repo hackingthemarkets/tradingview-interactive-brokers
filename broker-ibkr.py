@@ -29,10 +29,6 @@ def handle_ex(e):
     tmk = config['DEFAULT']['textmagic-key']
     tmp = config['DEFAULT']['textmagic-phone']
     if tmu != '':
-        tmu = config['DEFAULT']['textmagic-username']
-        tmk = config['DEFAULT']['textmagic-key']
-        tmp = config['DEFAULT']['textmagic-phone']
-
         tmc = TextmagicRestClient(tmu, tmk)
         # if e is a string send it, otherwise send the first 300 chars of the traceback
         if isinstance(e, str):
@@ -113,22 +109,17 @@ def get_net_liquidity(account):
             net_liquidity = float(value.value)
             break
 
-    print(f"  get_net_liquidity({account}) -> {net_liquidity}")
     return net_liquidity
 
-def get_position_size(account, symbol, stock):
+def get_position_size(account, symbol, stock=None):
     if stock is None:
         stock = get_stock(symbol)
 
     # get the current position size
-    position = None
     for p in ib.positions(account):
         if p.contract.symbol == symbol:
-            print(f"  get_position_size({account},{symbol},{stock}) -> {p.position}")
             return p.position
-            break
 
-    print(f"  get_position_size({account},{symbol},{stock}) -> 0")
     return 0
 
 def set_position_size(account, symbol, stock, amount, round_precision):
