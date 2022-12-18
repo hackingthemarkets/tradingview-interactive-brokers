@@ -4,6 +4,9 @@ from flask import Flask, render_template, request, g, current_app
 app = Flask(__name__)
 
 r = redis.Redis(host='localhost', port=6379, db=0)
+p = r.pubsub()
+p.subscribe('health')
+p.get_message(timeout=3)
 
 def get_db():
     if 'db' not in g:
@@ -131,10 +134,25 @@ def webhook():
 
     return {"code": "success"}
 
-# POST /killngrok
-@app.get("/killngrok")
-def killngrok():
-    stream = os.popen('killall ngrok')
-    output = stream.read()
-    output
+# GET /health
+@app.get("/health")
+def health():
+
+    # send a message to the redis channel to test connectivity
+    r.publish('tradingview', 'health check')
+    # check if we got a response (we want two)
+    message = p.get_message(timeout=1)
+    if message and message['type'] == 'message':
+        message = p.get_message(timeout=1)
+        if message and message['type'] == 'message':
+            return {"code": "success"}
+
+    if message != None:
+        return {"code": "failure", "message-type": message['type'], "message": message['data']}, 500
+    else:
+        return {"code": "failure", "message-type": "timeout", "message": "no message received"}, 500
+
+
+
+
 

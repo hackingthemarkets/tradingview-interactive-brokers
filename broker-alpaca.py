@@ -35,6 +35,15 @@ async def check_messages():
         #print(f"{time.time()} - checking for tradingview webhook messages")
         message = p.get_message()
         if message is not None and message['type'] == 'message':
+
+            if message['data'] == b'health check':
+                print("health check received")
+                time.sleep(1)
+                r.publish('health', 'ok')
+                return
+
+            r.publish('health', 'ok')
+
             print("*** ",datetime.datetime.now())
             print(message)
 

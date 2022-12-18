@@ -178,6 +178,12 @@ async def check_messages():
             print("*** ",datetime.datetime.now())
             print(message)
 
+            if message['data'] == b'health check':
+                print("health check received")
+                ib.sleep(1)
+                r.publish('health', 'ok')
+                return
+
             data_dict = json.loads(message['data'])
 
             if 'bot' not in data_dict['strategy']:
