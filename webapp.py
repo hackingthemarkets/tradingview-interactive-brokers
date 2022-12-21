@@ -152,7 +152,73 @@ def health():
     else:
         return {"code": "failure", "message-type": "timeout", "message": "no message received"}, 500
 
+# POST /stop-backend
+@app.post("/stop-backend")
+def stop_backend():
+    # find the broker processes and kill them
+    os.system("pkill -f start-broker-ibkr-mac-live.sh")
+    os.system("pkill -f broker-ibkr.py")
+    os.system("pkill -f start-broker-alpaca-mac.sh")
+    os.system("pkill -f broker-alpaca.py")
 
+    return "<html><body>Done<br><br><a href=/>Back to Home</a></body></html>"
 
+# POST /start-backend
+@app.post("/start-backend")
+def start_backend():
+    # find the broker processes and kill them
+    os.system("pkill -f start-broker-ibkr-mac-live.sh")
+    os.system("pkill -f broker-ibkr.py")
+    os.system("pkill -f start-broker-alpaca-mac.sh")
+    os.system("pkill -f broker-alpaca.py")
+
+    # start the broker processes in the background
+    if os.system("sh start-broker-ibkr-mac-live.sh &") != 0:
+        return "<html><body>Failed to start IBKR broker<br><br><a href=/>Back to Home</a></body></html>"
+
+    if os.system("sh start-broker-alpaca-mac.sh&") != 0:
+        return "<html><body>Failed to start Alpaca broker<br><br><a href=/>Back to Home</a></body></html>"
+
+    return "<html><body>Done<br><br><a href=/>Back to Home</a></body></html>"
+
+# GET /show-logs-ibkr?tail=xxx
+@app.get("/show-logs-ibkr")
+def show_logs_ibkr():
+    tail = request.args.get("tail")
+    if tail == None:
+        tail = 100
+    else:
+        tail = int(tail)
+
+    fname = "start-broker-ibkr-mac-live.sh.log"
+    if os.path.exists(fname):
+        with open(fname) as f:
+            # read the last n lines
+            lines = f.readlines()
+            lines = lines[-tail:]
+            lines = "".join(lines)
+            return f"<html><body><h1>IBKR Broker Logs</h1><br><br><a href=/>Back to Home</a><br><br><pre>{lines}</pre></body></html>"
+    else:
+        return "<html><body>File not found<br><br><a href=/>Back to Home</a></body></html>"
+
+# GET /show-logs-alpaca?tail=xxx
+@app.get("/show-logs-alpaca")
+def show_logs_alpaca():
+    tail = request.args.get("tail")
+    if tail == None:
+        tail = 100
+    else:
+        tail = int(tail)
+
+    fname = "start-broker-alpaca-mac.sh.log"
+    if os.path.exists(fname):
+        with open(fname) as f:
+            # read the last n lines
+            lines = f.readlines()
+            lines = lines[-tail:]
+            lines = "".join(lines)
+            return f"<html><body><h1>alpaca Broker Logs</h1><br><br><a href=/>Back to Home</a><br><br><pre>{lines}</pre></body></html>"
+    else:
+        return "<html><body>File not found<br><br><a href=/>Back to Home</a></body></html>"
 
 
