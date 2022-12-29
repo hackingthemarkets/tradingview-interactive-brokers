@@ -259,8 +259,15 @@ async def check_messages():
 
                 print(f"** WORKING ON TRADE for account {account} symbol {order_symbol} to position {desired_position} at price {order_price}")
 
+
+                # if it's a long-short transition, we need to first go flat
+                current_position = get_position_size(account, order_symbol, stock)
+                if desired_position < 0 and current_position > 0:
+                    print("going flat first")
+                    set_position_size(account, order_symbol, stock, 0, order_price)
+
                 # check for account and security specific percentage of net liquidity in config
-                # (if it's not a goflat order
+                # (if it's not a goflat order)
                 if not is_futures and desired_position != 0 and account in config and f"{order_symbol} pct" in config[account]:
                     percent = float(config[account][f"{order_symbol} pct"])
                     # first, we find the value of the desired position in dollars, and set up some tiers

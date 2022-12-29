@@ -11,9 +11,9 @@ while grep -s "ngrok-run = yes" config.txt >/dev/null ; do
 	date |tee -a $logfile
 	echo Starting up |tee -a $logfile
 	if [ "$subd" = "" ] ; then
-		ngrok http 6000
+		ngrok http 6001
 	else
-		ngrok http --subdomain=$subd 6000
+		ngrok http --subdomain=$subd 6001
 	fi
 	echo Restarting in 5s |tee -a $logfile
 	sleep 5
