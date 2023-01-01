@@ -33,7 +33,7 @@ class broker_alpaca:
 
         # pick up a cached IB connection if it exists; cache lifetime is 5 mins
         alcachekey = f"{self.aconfig['key']}"
-        if account in alpacaconn_cache and alpacaconn_cache[alcachekey]['time'] > time.time() - 300:
+        if alcachekey in alpacaconn_cache and alpacaconn_cache[alcachekey]['time'] > time.time() - 300:
             self.conn = alpacaconn_cache[alcachekey]['conn']
             self.dataconn = alpacaconn_cache[alcachekey]['dataconn']
 
@@ -41,8 +41,8 @@ class broker_alpaca:
             try:
                 print(f"Alpaca: Trying to connect...")
                 paper = True if self.aconfig['paper'] == 'yes' else False
-                self.conn = TradingClient(key_id=self.aconfig['key'], secret_key=self.aconfig['secret'], paper=paper)
-                self.dataconn = StockHistoricalDataClient(key_id=self.aconfig['key'], secret_key=self.aconfig['secret'], paper=paper)
+                self.conn = TradingClient(api_key=self.aconfig['key'], secret_key=self.aconfig['secret'], paper=paper)
+                self.dataconn = StockHistoricalDataClient(api_key=self.aconfig['key'], secret_key=self.aconfig['secret'])
 
             except Exception as e:
                 self.handle_ex(e)
@@ -99,18 +99,20 @@ class broker_alpaca:
         if symbol in ticker_cache and time.time() - ticker_cache[symbol]['time'] < 5:
             ticker = ticker_cache[symbol]['ticker']
         else:
-            multisymbol_request_params = self.dataconn.StockLatestQuoteRequest(symbol_or_symbols=[symbol])
+            multisymbol_request_params = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
             latest_multisymbol_quotes = self.dataconn.get_stock_latest_quote(multisymbol_request_params)
             ticker = latest_multisymbol_quotes[symbol]
             ticker_cache[symbol] = {'ticker': ticker, 'time': time.time()}
 
         price = ticker.ask_price
-        print(f"  get_price({symbol},{stock}) -> {price}")
+        print(f"  get_price({symbol}) -> {price}")
         return price
 
     def get_net_liquidity(self):
         # get the current Alpaca net liquidity in USD
-        return self.conn.get_account().last_equity
+        net_liquidity = self.conn.get_account().last_equity
+        print(f"  get_net_liquidity() -> {net_liquidity}")
+        return net_liquidity
 
     def get_position_size(self, symbol):
         if stock is None:
@@ -185,3 +187,4 @@ class broker_alpaca:
 
     def health_check(self):
         self.get_net_liquidity()
+        self.get_price('SPY')

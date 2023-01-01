@@ -140,12 +140,10 @@ def health():
 
     # send a message to the redis channel to test connectivity
     r.publish('tradingview', 'health check')
-    # check if we got a response (we want two)
-    message = p.get_message(timeout=1)
+    # check if we got a response 
+    message = p.get_message(timeout=15)
     if message and message['type'] == 'message':
-        message = p.get_message(timeout=1)
-        if message and message['type'] == 'message':
-            return {"code": "success"}
+        return {"code": "success"}
 
     if message != None:
         return {"code": "failure", "message-type": message['type'], "message": message['data']}, 500
@@ -156,10 +154,8 @@ def health():
 @app.post("/stop-backend")
 def stop_backend():
     # find the broker processes and kill them
-    os.system("pkill -f start-broker-ibkr-mac-live.sh")
-    os.system("pkill -f broker-ibkr.py")
-    os.system("pkill -f start-broker-alpaca-mac.sh")
-    os.system("pkill -f broker-alpaca.py")
+    os.system("pkill -f start-broker-live.sh")
+    os.system("pkill -f broker.py")
 
     return "<html><body>Done<br><br><a href=/>Back to Home</a></body></html>"
 
@@ -167,17 +163,12 @@ def stop_backend():
 @app.post("/start-backend")
 def start_backend():
     # find the broker processes and kill them
-    os.system("pkill -f start-broker-ibkr-mac-live.sh")
-    os.system("pkill -f broker-ibkr.py")
-    os.system("pkill -f start-broker-alpaca-mac.sh")
-    os.system("pkill -f broker-alpaca.py")
+    os.system("pkill -f start-broker-live.sh")
+    os.system("pkill -f broker.py")
 
     # start the broker processes in the background
-    if os.system("sh start-broker-ibkr-mac-live.sh &") != 0:
+    if os.system("sh start-broker-live.sh &") != 0:
         return "<html><body>Failed to start IBKR broker<br><br><a href=/>Back to Home</a></body></html>"
-
-    if os.system("sh start-broker-alpaca-mac.sh&") != 0:
-        return "<html><body>Failed to start Alpaca broker<br><br><a href=/>Back to Home</a></body></html>"
 
     return "<html><body>Done<br><br><a href=/>Back to Home</a></body></html>"
 

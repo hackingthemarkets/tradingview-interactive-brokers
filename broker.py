@@ -52,36 +52,36 @@ accounts = accountlist.split(",")
 
 print("Waiting for webhook messages...")
 async def check_messages():
-    try:
 
-        #print(f"{time.time()} - checking for tradingview webhook messages")
+    #print(f"{time.time()} - checking for tradingview webhook messages")
 
-        message = p.get_message()
-        if message is not None and message['type'] == 'message':
-            print("*** ",datetime.datetime.now())
-            print(message)
+    message = p.get_message()
+    if message is not None and message['type'] == 'message':
+        print("*** ",datetime.datetime.now())
+        print(message)
 
-            if message['data'] == b'health check':
-                try:
-                    print("health check received; checking every account")
-                    for account in accounts:
-                        print("checking account",account)
-                        config.read('config.txt')
-                        aconfig = config[account]
-                        if aconfig['driver'] == 'ibkr':
-                            driver = broker_ibkr(bot, account)
-                        elif aconfig['driver'] == 'alpaca':
-                            driver = broker_alpaca(bot, account)
-                        else:
-                            raise Exception("Unknown driver: " + aconfig['driver'])
-                        driver.health_check()
+        if message['data'] == b'health check':
+            try:
+                print("health check received; checking every account")
+                for account in accounts:
+                    print("checking account",account)
+                    config.read('config.txt')
+                    aconfig = config[account]
+                    if aconfig['driver'] == 'ibkr':
+                        driver = broker_ibkr(bot, account)
+                    elif aconfig['driver'] == 'alpaca':
+                        driver = broker_alpaca(bot, account)
+                    else:
+                        raise Exception("Unknown driver: " + aconfig['driver'])
+                    driver.health_check()
 
-                    r.publish('health', 'ok')
-                except Exception as e:
-                    print(f"health check failed: {e}")
+                r.publish('health', 'ok')
+            except Exception as e:
+                print(f"health check failed: {e}")
 
-                return
+            return
 
+        try:
             data_dict = json.loads(message['data'])
 
             if 'bot' not in data_dict['strategy']:
@@ -223,9 +223,9 @@ async def check_messages():
                     print('desired quantity is the same as the current quantity.  No order placed.')
 
 
-    except Exception as e:
-        handle_ex(e)
-        raise
+        except Exception as e:
+            handle_ex(e)
+            raise
 
 runcount = 1
 async def run_periodically(interval, periodic_function):

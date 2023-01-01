@@ -22,10 +22,10 @@ class broker_ibkr:
         self.aconfig = self.config[account]
         self.conn = None
 
-        # pick up a cached IB connection if it exists; cache lifetime is 5 mins
+        # pick up a cached IB connection if it exists
         ibcachekey = f"{self.aconfig['host']}:{self.aconfig['port']}"
-        if account in ibconn_cache and ibconn_cache[ibcachekey]['time'] > time.time() - 300:
-            self.conn = ibconn_cache[ibcachekey]['ib']
+        if ibcachekey in ibconn_cache:
+            self.conn = ibconn_cache[ibcachekey]['conn']
 
         if self.conn is None:
             self.conn = IB()
@@ -37,7 +37,7 @@ class broker_ibkr:
                 raise
 
             # cache the connection
-            ibconn_cache[ibcachekey] = {'ib': self.conn, 'time': time.time()}
+            ibconn_cache[ibcachekey] = {'conn': self.conn, 'time': time.time()}
             print("IB: Connected")
 
     def handle_ex(self, e):
@@ -137,7 +137,7 @@ class broker_ibkr:
                 price = ticker.close
         else:
             price = ticker.last
-        print(f"  get_price({symbol},{stock}) -> {price}")
+        print(f"  get_price({symbol}) -> {price}")
         return price
 
     def get_net_liquidity(self):
@@ -148,6 +148,8 @@ class broker_ibkr:
             if value.tag == 'NetLiquidation':
                 net_liquidity = float(value.value)
                 break
+
+        print(f"  get_net_liquidity() -> {net_liquidity}")
 
         return net_liquidity
 
@@ -207,3 +209,4 @@ class broker_ibkr:
 
     def health_check(self):
         self.get_net_liquidity()
+        self.get_price('SPY')
