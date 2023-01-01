@@ -221,4 +221,3 @@ def show_logs_alpaca():
     else:
         return "<html><body>File not found<br><br><a href=/>Back to Home</a></body></html>"
 
-
