@@ -65,7 +65,7 @@ async def check_messages():
                 print("health check received; checking every account")
                 for account in accounts:
                     print("checking account",account)
-                    config.read('config.txt')
+                    config.read('config.ini')
                     aconfig = config[account]
                     if aconfig['driver'] == 'ibkr':
                         driver = broker_ibkr(bot, account)
@@ -91,7 +91,7 @@ async def check_messages():
                 print("signal intended for different bot '",data_dict['strategy']['bot'],"', skipping")
                 return
 
-            config.read('config.txt')
+            config.read('config.ini')
 
             ## extract data from TV payload received via webhook
             order_symbol_orig          = data_dict['ticker']                             # ticker for which TV order was sent
@@ -123,15 +123,25 @@ async def check_messages():
 
 
                 # if it's a long-short transition, we need to first go flat
-                current_position = driver.get_position_size(account, order_symbol, stock)
+                current_position = driver.get_position_size(order_symbol)
                 if desired_position < 0 and current_position > 0:
-                    print("going flat first")
-                    await driver.set_position_size(account, order_symbol, stock, 0, order_price)
+                    print("L-S going flat first")
+                    await driver.set_position_size(order_symbol, 0)
+
+                # if it's a short-long transition, we need to first go flat
+                if desired_position > 0 and current_position < 0:
+                    print("S-L going flat first")
+                    await driver.set_position_size(order_symbol, 0)
+                    # if this account needs to use short ETF's, flatten that one as well
+                    if aconfig.get('use-inverse-etf', 'no') == 'yes':
+                        short_symbol = config['inverse-etfs'][order_symbol]
+                        await driver.set_position_size(short_symbol, 0)
+
 
                 # check for account and security specific percentage of net liquidity in config
                 # (if it's not a goflat order)
-                if not order_stock.is_futures and desired_position != 0 and f"{order_symbol} pct" in aconfig:
-                    percent = float(aconfig[f"{order_symbol} pct"])
+                if not order_stock.is_futures and desired_position != 0 and f"{order_symbol}-pct" in aconfig:
+                    percent = float(aconfig[f"{order_symbol}-pct"])
                     # first, we find the value of the desired position in dollars, and set up some tiers
                     # to support various levels of take-profits
                     if round(abs(desired_position) * order_price) < 5000:
@@ -145,10 +155,13 @@ async def check_messages():
                     # now we find the net liquidity in dollars
                     net_liquidity = driver.get_net_liquidity()
                     # and then we find the desired position in shares
-                    new_desired_position = round(net_liquidity * (percent/100) / order_price)
+                    print(f"new_desired_position = round({net_liquidity} * ({percent}/100) / {order_price})")
+                    new_desired_position = abs(round(net_liquidity * (percent/100) / order_price))
                     if desired_position < 0: new_desired_position = -new_desired_position
                     print(f"using account specific net liquidity {percent}% for {order_symbol}: {desired_position} -> {new_desired_position}")
                     desired_position = new_desired_position
+                else:
+                    print(f"not using account specific net liquidity: {order_stock.is_futures} {desired_position} {f'{order_symbol} pct' in aconfig}")
 
                 # check for security conversion (generally futures to ETF); format is "mult x ETF"
                 if order_symbol_orig in aconfig:
@@ -156,9 +169,8 @@ async def check_messages():
                     [switchmult, x, order_symbol] = aconfig[order_symbol_orig].split()
                     switchmult = float(switchmult)
                     desired_position = round(desired_position * switchmult)
-                    stock = driver.get_stock(order_symbol) # TODO: have to make this assumption for now
+                    order_stock = driver.get_stock(order_symbol)
                     order_price = driver.get_price(order_symbol)
-                    is_futures = 0
 
                 # check for global multipliers, vs whatever position sizes are coming in from TV
                 if not order_stock.is_futures and "multiplier" in config['DEFAULT'] and config['DEFAULT']["multiplier"] != "":
@@ -178,6 +190,7 @@ async def check_messages():
                 # switch from short a long ETF to long a short ETF, if this account needs it
                 if desired_position < 0 and aconfig.get('use-inverse-etf', 'no') == 'yes':
                     long_price = driver.get_price(order_symbol)
+                    long_symbol = order_symbol
                     short_symbol = config['inverse-etfs'][order_symbol]
 
                     # now continue with the short ETF
@@ -186,8 +199,6 @@ async def check_messages():
                     order_price = short_price
                     desired_position = abs(round(desired_position * long_price / short_price))
                     print(f"switching to inverse ETF {order_symbol}, to position {desired_position} at price ", order_price)
-
-                    # TODO: handle long-short transitions
 
                 # skip if two signals came out of order and we got a goflat after a non-goflat order
                 current_time = datetime.datetime.now()
@@ -202,23 +213,12 @@ async def check_messages():
                         print("skipping order, seems to be a direction changing exit")
                         return
 
-                current_position = driver.get_position_size(account, order_symbol)
+                current_position = driver.get_position_size(order_symbol)
 
-                opposite_sides = (current_position < 0 and desired_position > 0) or (current_position > 0 and desired_position < 0)
-                # if we're going flat or opposite sides, if this account uses long and short ETF's, close them both
-                if (desired_position == 0 or opposite_sides) and aconfig.get('use-inverse-etf', 'no') == 'yes':
-
-                    print('sending order to reduce long position to flat')
-                    await driver.set_position_size(account, order_symbol, 0)
-
-                    print('sending order to reduce short position to flat')
-                    short_symbol = config['inverse-etfs'][order_symbol]
-                    await driver.set_position_size(account, short_symbol, 0)
-            
                 # now let's go ahead and place the order to reach the desired position
                 if desired_position != current_position:
                     print(f"sending order to reach desired position of {desired_position} shares")
-                    await driver.set_position_size(account, order_symbol, desired_position)
+                    await driver.set_position_size(order_symbol, desired_position)
                 else:
                     print('desired quantity is the same as the current quantity.  No order placed.')
 

@@ -1,3 +1,4 @@
+import asyncio
 from ib_insync import *
 import time
 import nest_asyncio
@@ -154,29 +155,29 @@ class broker_ibkr:
         return net_liquidity
 
     def get_position_size(self, symbol):
-        if stock is None:
-            stock = self.get_stock(symbol)
-
         # get the current position size
+        # TODO: compare with normalized stock name
+        psize = 0
         for p in self.conn.positions(self.account):
             if p.contract.symbol == symbol:
-                return p.position
+                psize = int(p.position)
 
-        return 0
+        print(f"  get_position_size({symbol}) -> {psize}")
+        return psize
 
     async def set_position_size(self, symbol, amount):
         print(f"set_position_size({self.account},{symbol},{amount})")
         stock = self.get_stock(symbol)
 
         # get the current position size
-        position_size = self.get_position_size(self.account, symbol, stock)
+        position_size = self.get_position_size(symbol)
 
         # figure out how much to buy or sell
         position_variation = round(amount - position_size, 0)
 
         # if we need to buy or sell, do it with a limit order
         if position_variation != 0:
-            price = self.get_price(symbol, stock)
+            price = self.get_price(symbol)
             high_limit_price = self.x_round(price * 1.005, stock.round_precision)
             low_limit_price  = self.x_round(price * 0.995, stock.round_precision)
 
@@ -195,7 +196,8 @@ class broker_ibkr:
             maxloops = 30
             print("    waiting for trade1: ", trade)
             while trade.orderStatus.status not in ['Filled','PreSubmitted','Cancelled','Inactive'] and maxloops > 0:
-                self.conn.sleep(1)
+                #self.conn.sleep(1)
+                await asyncio.sleep(1)
                 print("    waiting for trade2: ", trade)
                 maxloops -= 1
 
@@ -209,4 +211,6 @@ class broker_ibkr:
 
     def health_check(self):
         self.get_net_liquidity()
-        self.get_price('SPY')
+        self.get_price('SOXL')
+        self.get_position_size('SOXL')
+        self.get_position_size('SOXS')

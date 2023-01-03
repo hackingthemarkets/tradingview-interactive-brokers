@@ -112,53 +112,53 @@ class broker_alpaca:
         # get the current Alpaca net liquidity in USD
         net_liquidity = self.conn.get_account().last_equity
         print(f"  get_net_liquidity() -> {net_liquidity}")
-        return net_liquidity
+        return float(net_liquidity)
 
     def get_position_size(self, symbol):
-        if stock is None:
-            stock = self.get_stock(symbol)
-
         # get the current Alpaca position size for this stock and this account
         position_size = 0
-        for position in self.conn.list_positions():
+        for position in self.conn.get_all_positions():
             if position.symbol == symbol:
-                position_size = position.qty
+                position_size = int(position.qty)
                 break
+        print(f"  get_position_size({symbol}) -> {position_size}")
         return position_size
 
 
     async def set_position_size(self, symbol, amount):
-        print(f"set_position_size({self.account},{symbol},{amount})")
-        stock = self.get_stock(symbol)
+        print(f"set_position_size({symbol},{amount}) acct {self.account}")
 
         # get the current position size
-        position_size = self.get_position_size(symbol, stock)
+        position_size = self.get_position_size(symbol)
 
         # figure out how much to buy or sell
         position_variation = round(amount - position_size, 0)
 
         # if we need to buy or sell, do it with a limit order
         if position_variation != 0:
-            price = self.get_price(symbol, stock)
+            price = self.get_price(symbol)
             high_limit_price = round(price * 1.005, 2)
             low_limit_price  = round(price * 0.995, 2)
+
+            # convert position_variation to a string with no decimal places
+            position_variation = int(position_variation)
 
             if position_variation > 0:
                 limit_order_data = LimitOrderRequest(
                     symbol=symbol,
                     limit_price=high_limit_price,
-                    notional=position_variation,
+                    qty=abs(position_variation),
                     side=OrderSide.BUY,
-                    time_in_force=TimeInForce.GTC,
+                    time_in_force=TimeInForce.DAY,
                     extended_hours = True
                    )
             else:
                 limit_order_data = LimitOrderRequest(
                     symbol=symbol,
                     limit_price=low_limit_price,
-                    notional=position_variation,
+                    qty=abs(position_variation),
                     side=OrderSide.SELL,
-                    time_in_force=TimeInForce.GTC,
+                    time_in_force=TimeInForce.DAY,
                     extended_hours = True
                    )
 
@@ -169,16 +169,16 @@ class broker_alpaca:
             # wait for the order to be filled, up to 30s
             maxloops = 30
             print("    waiting for trade1: ", trade)
-            trade = self.conn.get_order(trade.id)
+            trade = self.conn.get_order_by_id(trade.id)
             while trade.status in ['new','partially_filled'] and maxloops > 0:
                 await asyncio.sleep(1)
                 print("    waiting for trade2: ", trade)
                 maxloops -= 1
-                trade = self.conn.get_order(trade.id)
+                trade = self.conn.get_order_by_id(trade.id)
 
             # throw exception on order failure
             if trade.status not in ['filled']:
-                msg = f"ORDER FAILED: set_position_size({self.account},{symbol},{stock},{amount}) -> {trade.orderStatus}"
+                msg = f"ORDER FAILED: set_position_size({symbol},{amount}) acct {self.account} -> {trade.orderStatus}"
                 print(msg)
                 self.handle_ex(msg)
 
@@ -187,4 +187,6 @@ class broker_alpaca:
 
     def health_check(self):
         self.get_net_liquidity()
-        self.get_price('SPY')
+        self.get_price('SOXL')
+        self.get_position_size('SOXL')
+        self.get_position_size('SOXS')
