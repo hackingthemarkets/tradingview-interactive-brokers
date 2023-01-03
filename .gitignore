@@ -1,4 +1,4 @@
-config.txt
+config.ini
 *.log
 *.db
 *.pyc
