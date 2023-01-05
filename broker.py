@@ -122,15 +122,15 @@ async def check_messages():
                 print(f"** WORKING ON TRADE for account {account} symbol {order_symbol} to position {desired_position} at price {order_price}")
 
 
-                # if it's a long-short transition, we need to first go flat
+                # if it's a long-short transition or going flat, we sell out of our position
                 current_position = driver.get_position_size(order_symbol)
-                if desired_position < 0 and current_position > 0:
-                    print("L-S going flat first")
+                if (desired_position < 0 and current_position > 0) or desired_position == 0:
+                    print("L-S/goflat going flat")
                     await driver.set_position_size(order_symbol, 0)
 
-                # if it's a short-long transition, we need to first go flat
-                if desired_position > 0 and current_position < 0:
-                    print("S-L going flat first")
+                # if it's a short-long transition or going flat, we sell out of the short position
+                if (desired_position > 0 and current_position < 0) or desired_position == 0:
+                    print("S-L/goflat going flat")
                     await driver.set_position_size(order_symbol, 0)
                     # if this account needs to use short ETF's, flatten that one as well
                     if aconfig.get('use-inverse-etf', 'no') == 'yes':
