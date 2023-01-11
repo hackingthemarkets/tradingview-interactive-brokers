@@ -1,6 +1,7 @@
 
 from unittest import skip
-
+from textmagic.rest import TextmagicRestClient
+import traceback
 
 class broker_root:
     def __init__(self, bot, account):

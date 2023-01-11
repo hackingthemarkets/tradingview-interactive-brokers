@@ -3,9 +3,7 @@ from ib_insync import *
 import time
 import nest_asyncio
 import configparser
-import traceback
 import math
-from textmagic.rest import TextmagicRestClient
 from broker_root import broker_root
 
 nest_asyncio.apply()
