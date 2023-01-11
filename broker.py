@@ -1,5 +1,5 @@
 import redis, json
-import asyncio, time, random, datetime
+import asyncio, datetime
 import sys
 import nest_asyncio
 import configparser
@@ -41,10 +41,6 @@ def handle_ex(e):
 r = redis.Redis(host='localhost', port=6379, db=0)
 p = r.pubsub()
 p.subscribe('tradingview')
-
-# function to round to the nearest decimal. y=10 for dimes, y=4 for quarters, y=100 for pennies
-def x_round(x,y):
-    return round(x*y)/y
 
 # figure out what account list to use, if any is specified
 accountlist = config[f"bot-{bot}"]['accounts']

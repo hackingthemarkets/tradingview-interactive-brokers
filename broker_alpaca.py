@@ -1,13 +1,9 @@
 import asyncio
-import sys
 import time
 import configparser
-import traceback
-import math
-from textmagic.rest import TextmagicRestClient
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import GetAssetsRequest, GetOrdersRequest, LimitOrderRequest
-from alpaca.trading.enums import AssetClass, OrderSide, TimeInForce, OrderStatus
+from alpaca.trading.requests import LimitOrderRequest
+from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockLatestQuoteRequest
 from broker_root import broker_root
