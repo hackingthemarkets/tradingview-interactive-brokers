@@ -8,6 +8,7 @@ from textmagic.rest import TextmagicRestClient
 
 nest_asyncio.apply()
 
+from broker_root import broker_root
 from broker_ibkr import broker_ibkr
 from broker_alpaca import broker_alpaca
 
@@ -105,6 +106,7 @@ async def check_messages():
                 print("")
 
                 aconfig = config[account]
+                driver: broker_root
                 if aconfig['driver'] == 'ibkr':
                     driver = broker_ibkr(bot, account)
                 elif aconfig['driver'] == 'alpaca':

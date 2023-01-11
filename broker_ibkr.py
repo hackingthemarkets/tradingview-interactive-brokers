@@ -6,6 +6,7 @@ import configparser
 import traceback
 import math
 from textmagic.rest import TextmagicRestClient
+from broker_root import broker_root
 
 nest_asyncio.apply()
 
@@ -14,7 +15,7 @@ stock_cache = {}
 ticker_cache = {}
 
 # declare a class to represent the IB driver
-class broker_ibkr:
+class broker_ibkr(broker_root):
     def __init__(self, bot, account):
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
@@ -40,22 +41,6 @@ class broker_ibkr:
             # cache the connection
             ibconn_cache[ibcachekey] = {'conn': self.conn, 'time': time.time()}
             print("IB: Connected")
-
-    def handle_ex(self, e):
-        tmu = self.config['DEFAULT']['textmagic-username']
-        tmk = self.config['DEFAULT']['textmagic-key']
-        tmp = self.config['DEFAULT']['textmagic-phone']
-        if tmu != '':
-            tmc = TextmagicRestClient(tmu, tmk)
-            # if e is a string send it, otherwise send the first 300 chars of the traceback
-            if isinstance(e, str):
-                message = tmc.messages.create(phones=tmp, text=f"broker-ibkr " + self.bot + " FAIL " + e)
-            else:
-                message = tmc.messages.create(phones=tmp, text=f"broker-ibkr " + self.bot + " FAIL " + traceback.format_exc()[0:300])
-
-    # function to round to the nearest decimal. y=10 for dimes, y=4 for quarters, y=100 for pennies
-    def x_round(self,x,y):
-        return round(x*y)/y
 
     def get_stock(self, symbol):
         # keep a cache of stocks to avoid repeated calls to IB
