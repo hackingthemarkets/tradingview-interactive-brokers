@@ -54,12 +54,12 @@ class broker_ibkr(broker_root):
 
             if symbol == 'NQ1!':
                 symbol = 'NQ'
-                stock = Future(symbol, '20221216', 'GLOBEX')
+                stock = Future(symbol, '20230317', 'GLOBEX')
                 stock.is_futures = 1
                 stock.round_precision = 4
             elif symbol == 'ES1!':
                 symbol = 'ES'
-                stock = Future(symbol, '20221216', 'GLOBEX')
+                stock = Future(symbol, '20230317', 'GLOBEX')
                 stock.is_futures = 1
                 stock.round_precision = 4
             elif symbol == 'RTY1!':

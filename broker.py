@@ -102,7 +102,7 @@ async def check_messages():
                 print("")
 
                 aconfig = config[account]
-                driver: broker_root
+                driver: broker_root = None
                 if aconfig['driver'] == 'ibkr':
                     driver = broker_ibkr(bot, account)
                 elif aconfig['driver'] == 'alpaca':
@@ -118,7 +118,6 @@ async def check_messages():
                 order_stock = driver.get_stock(order_symbol)
 
                 print(f"** WORKING ON TRADE for account {account} symbol {order_symbol} to position {desired_position} at price {order_price}")
-
 
                 # if it's a long-short transition or going flat, we sell out of our position
                 current_position = driver.get_position_size(order_symbol)
