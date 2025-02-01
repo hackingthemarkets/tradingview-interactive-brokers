@@ -7,10 +7,6 @@ https://www.youtube.com/watch?v=zsYKfzCNPPU
 
 ## Support My Work
 
-__Visit Interactive Brokers__
-
-https://www.interactivebrokers.com/mkt/?src=ptlg&url=%2Fen%2Findex.php%3Ff%3D1338
-
 __Buy Me a Coffee__
 
 https://buymeacoffee.com/parttimelarry
